@@ -1,7 +1,7 @@
 'use client';
 
 import { Trash2, Plus, Minus } from 'lucide-react';
-import { CartItem as CartItemType } from '@/lib/CartContext';
+import { CartItem as CartItemType } from '@/lib/api/cart';
 import { Button } from '@/components/ui/button';
 
 interface CartItemProps {
@@ -11,20 +11,18 @@ interface CartItemProps {
 }
 
 export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItemProps) {
+  const productName = item.product?.name || 'Unknown Product';
+
   return (
     <div className="flex gap-4 py-4 border-b last:border-b-0 sm:gap-6">
       {/* Product Image */}
       <div className="flex-shrink-0 w-20 h-20 sm:w-24 sm:h-24 bg-gray-200 rounded-lg flex items-center justify-center">
-        {item.image ? (
-          <img src={item.image} alt={item.name} className="w-full h-full object-cover rounded-lg" />
-        ) : (
-          <div className="text-gray-400">No image</div>
-        )}
+        <div className="text-gray-400 text-center text-sm">No image</div>
       </div>
 
       {/* Product Info */}
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-gray-900 mb-1 truncate">{item.name}</h3>
+        <h3 className="font-semibold text-gray-900 mb-1 truncate">{productName}</h3>
         <p className="text-blue-600 font-bold text-lg">${item.price.toFixed(2)}</p>
       </div>
 

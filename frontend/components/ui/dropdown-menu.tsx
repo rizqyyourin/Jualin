@@ -31,14 +31,14 @@ const DropdownMenuTrigger = React.forwardRef<
 
     if (asChild) {
         // Basic slot support: clone the child and add onClick
-        const child = React.Children.only(children) as React.ReactElement;
+        const child = React.Children.only(children) as React.ReactElement<any>;
         return React.cloneElement(child, {
             onClick: (e: React.MouseEvent<HTMLElement>) => {
                 handleClick(e as any);
                 child.props.onClick?.(e);
             },
             ref
-        });
+        } as any);
     }
 
     return (
@@ -90,7 +90,7 @@ const DropdownMenuItem = React.forwardRef<
 
     if (asChild) {
         // Basic slot support
-        const child = React.Children.only(children) as React.ReactElement;
+        const child = React.Children.only(children) as React.ReactElement<any>;
         return React.cloneElement(child, {
             className: cn(
                 "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
@@ -98,7 +98,7 @@ const DropdownMenuItem = React.forwardRef<
                 child.props.className
             ),
             ref
-        });
+        } as any);
     }
 
     return (

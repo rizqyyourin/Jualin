@@ -68,13 +68,7 @@ export default function CartPage() {
               {items.map((item) => (
                 <CartItemComponent
                   key={item.id}
-                  item={{
-                    id: item.id.toString(), // Convert number to string for component compatibility
-                    name: item.product?.name || 'Unknown Product',
-                    price: Number(item.price),
-                    quantity: item.quantity,
-                    image: '', // API needs to return image, currently missing in type definition but let's handle gracefully
-                  }}
+                  item={item}
                   onUpdateQuantity={(quantity) => updateQuantity(item.id, quantity)}
                   onRemove={() => removeItem(item.id)}
                 />

@@ -94,8 +94,7 @@ export default function ProductListPage() {
     };
 
     const filteredProducts = products.filter(product =>
-        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchTerm.toLowerCase())
+        product.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (isAuthLoading || (isAuthenticated && isLoading && products.length === 0)) {
