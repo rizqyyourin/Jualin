@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 class ChatbotService
 {
     private ?string $apiKey;
-    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+    private string $apiUrl = 'https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent';
 
     public function __construct()
     {
@@ -146,6 +146,20 @@ class ChatbotService
                 return [
                     'content' => $aiContent,
                     'metadata' => $metadata,
+                ];
+            }
+
+            // Log the error details
+            \Log::error('Gemini API Failed', [
+                'status' => $response->status(),
+                'body' => $response->body()
+            ]);
+
+            // Handle specific error cases
+            if ($response->status() === 429) {
+                return [
+                    'content' => 'Maaf, server AI sedang sibuk karena banyaknya permintaan. Mohon tunggu beberapa saat sebelum mencoba lagi.',
+                    'metadata' => null,
                 ];
             }
 

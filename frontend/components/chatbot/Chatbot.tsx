@@ -75,7 +75,7 @@ export default function Chatbot() {
                     </div>
                     <div>
                         <h3 className="font-semibold text-sm">Jualin Assistant</h3>
-                        <p className="text-xs text-primary-foreground/80">Powered by Gemini AI</p>
+                        <p className="text-xs text-primary-foreground/80">Powered by Google Gemma</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -122,8 +122,8 @@ export default function Chatbot() {
                             >
                                 <div
                                     className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm shadow-sm ${msg.role === 'user'
-                                            ? 'bg-primary text-primary-foreground rounded-br-none'
-                                            : 'bg-card text-card-foreground border border-border rounded-bl-none'
+                                        ? 'bg-primary text-primary-foreground rounded-br-none'
+                                        : 'bg-card text-card-foreground border border-border rounded-bl-none'
                                         }`}
                                 >
                                     <div className="prose prose-sm dark:prose-invert max-w-none break-words whitespace-pre-wrap">
@@ -182,7 +182,7 @@ export default function Chatbot() {
                     </Button>
                 </div>
                 <p className="text-[10px] text-center text-muted-foreground mt-2">
-                    Tekan Enter untuk mengirim pesan • Gemini 2.0 Flash
+                    Tekan Enter untuk mengirim pesan • Gemma 3 27B (High Limit)
                 </p>
             </div>
         </div>
