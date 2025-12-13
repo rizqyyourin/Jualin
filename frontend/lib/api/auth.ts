@@ -14,6 +14,7 @@ export interface User {
   city?: string;
   province?: string;
   postal_code?: string;
+  email_verified_at?: string;
   created_at?: string;
   updated_at?: string;
 }
