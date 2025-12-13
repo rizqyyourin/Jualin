@@ -45,16 +45,35 @@ Kami telah menyederhanakan proses setup menggunakan Docker. Anda tidak perlu ins
     *   **Frontend (Toko):** [http://localhost:3000](http://localhost:3000)
     *   **Backend (API):** [http://localhost:8000](http://localhost:8000)
 
-## 🐛 Troubleshooting
+## 🌐 Setup Domain (VPS)
 
-*   **Port Conflict:** Jika gagal jalan, pastikan port `3000` dan `8000` tidak sedang dipakai oleh aplikasi lain.
-*   **Database:** Database SQLite tersimpan di `backend/database/database.sqlite`. Data akan tetap aman meskipun Docker dimatikan.
-*   **Hot-Reload:** Development mode aktif secara default. Perubahan kode di folder `frontend` atau `backend` akan langsung terlihat tanpa restart Docker.
+Jika ingin menggunakan domain sendiri (contoh: `jualin.yourin.my.id`), gunakan **Nginx** sebagai Reverse Proxy.
 
-## 🤖 Fitur AI Chatbot
+1.  **Install Nginx** (di VPS):
+    ```bash
+    sudo apt update
+    sudo apt install nginx -y
+    ```
 
-Project ini menggunakan **Google Gemma 3 27B** untuk fitur chatbot.
-Pastikan Anda memiliki API Key Google AI Studio yang valid di `backend/.env`:
-```env
-GEMINI_API_KEY=your_api_key_here
-```
+2.  **Pasang Konfigurasi:**
+    Kami sudah sediakan file config siap pakai `nginx.conf`.
+    ```bash
+    # Salin config ke folder Nginx
+    sudo cp nginx.conf /etc/nginx/sites-available/jualin
+    
+    # Aktifkan config
+    sudo ln -s /etc/nginx/sites-available/jualin /etc/nginx/sites-enabled/
+    
+    # Cek config error
+    sudo nginx -t
+    
+    # Reload Nginx
+    sudo systemctl reload nginx
+    ```
+
+3.  **Pasang SSL (HTTPS Gratis):**
+    ```bash
+    sudo apt install certbot python3-certbot-nginx -y
+    sudo certbot --nginx -d jualin.yourin.my.id
+    ```
+
