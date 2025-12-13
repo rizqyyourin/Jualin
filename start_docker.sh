@@ -16,6 +16,18 @@ else
   echo "   To change ports, create a .env file here."
 fi
 
+# Check for backend/.env
+if [ ! -f backend/.env ]; then
+  echo "⚠️  backend/.env not found! Creating from example..."
+  cp backend/.env.example backend/.env
+fi
+
+# Ensure SQLite database file exists
+if [ ! -f backend/database/database.sqlite ]; then
+  echo "🗄️  Creating SQLite database file..."
+  touch backend/database/database.sqlite
+fi
+
 # Determine which docker compose command to use
 if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
@@ -33,6 +45,12 @@ $COMPOSE_CMD down
 
 # Build and start containers
 $COMPOSE_CMD up -d --build
+
+echo "🔧 Configuring Backend..."
+# Generate key if missing
+$COMPOSE_CMD exec -T backend php artisan key:generate
+# Run migrations
+$COMPOSE_CMD exec -T backend php artisan migrate --force
 
 # Get effective ports (use defaults if env vars not set)
 F_PORT=${FRONTEND_PORT:-3000}
