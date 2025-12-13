@@ -35,7 +35,9 @@ interface Order {
   created_at: string;
 }
 
-export default function ConfirmationPage() {
+import { Suspense } from 'react';
+
+function ConfirmationContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('order');
 
@@ -332,5 +334,21 @@ export default function ConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex justify-center items-center h-96">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    }>
+      <ConfirmationContent />
+    </Suspense>
   );
 }
