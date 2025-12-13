@@ -8,6 +8,12 @@ export interface User {
   avatar?: string;
   role?: 'customer' | 'merchant' | 'admin';
   is_verified?: boolean;
+  store_name?: string;
+  store_description?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postal_code?: string;
   created_at?: string;
   updated_at?: string;
 }
