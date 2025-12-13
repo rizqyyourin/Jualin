@@ -2,16 +2,28 @@
 
 echo "🚀 Starting Jualin in Docker..."
 
+# Determine which docker compose command to use
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    echo "❌ Error: Docker Compose is not installed!"
+    exit 1
+fi
+
+echo "Using: $COMPOSE_CMD"
+
 # Stop any running containers
-docker-compose down
+$COMPOSE_CMD down
 
 # Build and start containers
-docker-compose up -d --build
+$COMPOSE_CMD up -d --build
 
 echo ""
 echo "✅ Services are starting!"
 echo "👉 Frontend: http://localhost:3000"
 echo "👉 Backend:  http://localhost:8000"
 echo ""
-echo "To stop: docker-compose down"
-echo "To view logs: docker-compose logs -f"
+echo "To stop: $COMPOSE_CMD down"
+echo "To view logs: $COMPOSE_CMD logs -f"
