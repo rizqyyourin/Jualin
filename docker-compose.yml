@@ -8,6 +8,7 @@ services:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend:/var/www
+      - /var/www/vendor
     environment:
       - APP_ENV=local
       - APP_DEBUG=true
@@ -25,8 +26,8 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
       - ./frontend:/app
-      # Determine if we need to isolate node_modules
-      # - /app/node_modules
+      - /app/node_modules
+      - /app/.next
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
     depends_on:
