@@ -2,6 +2,12 @@
 
 echo "🚀 Starting Jualin in Docker..."
 
+# Load .env file if it exists to make variables available
+if [ -f .env ]; then
+  echo "📄 Loading configuration from .env..."
+  export $(cat .env | xargs)
+fi
+
 # Determine which docker compose command to use
 if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
