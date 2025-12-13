@@ -67,7 +67,8 @@ export function SignupForm({ onSuccess, onSwitchToLogin, isModal = true }: Signu
     setMessage(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/auth/register', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
