@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FormInput } from '@/components/auth/FormInput';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2 } from 'lucide-react';
-import { ChevronLeft } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, Loader2 } from 'lucide-react';
+import { useUserStore } from '@/lib/stores/userStore';
+import { useNotifications } from '@/lib/stores/notificationStore';
+import apiClient from '@/lib/api';
 
 interface FormData {
   name: string;
@@ -15,8 +18,8 @@ interface FormData {
   phone: string;
   address: string;
   city: string;
-  country: string;
-  zipCode: string;
+  province: string;
+  postal_code: string;
 }
 
 interface FormErrors {
@@ -24,19 +27,45 @@ interface FormErrors {
 }
 
 export default function EditProfilePage() {
+  const router = useRouter();
+  const { user, isAuthenticated, isLoading: userLoading } = useUserStore();
+  const { success, error: showError } = useNotifications();
+
   const [formData, setFormData] = useState<FormData>({
-    name: 'John Doe',
-    email: 'john@example.com',
-    phone: '+62 812-3456-7890',
-    address: '123 Street',
-    city: 'Jakarta',
-    country: 'Indonesia',
-    zipCode: '12345',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    province: '',
+    postal_code: '',
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Protect route
+  useEffect(() => {
+    if (!userLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isAuthenticated, userLoading, router]);
+
+  // Load user data
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: (user as any).phone || '',
+        address: (user as any).address || '',
+        city: (user as any).city || '',
+        province: (user as any).province || '',
+        postal_code: (user as any).postal_code || '',
+      });
+    }
+  }, [user]);
 
   const validateForm = () => {
     const newErrors: FormErrors = {};
@@ -48,18 +77,6 @@ export default function EditProfilePage() {
       newErrors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
-    }
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Phone is required';
-    }
-    if (!formData.address.trim()) {
-      newErrors.address = 'Address is required';
-    }
-    if (!formData.city.trim()) {
-      newErrors.city = 'City is required';
-    }
-    if (!formData.country.trim()) {
-      newErrors.country = 'Country is required';
     }
 
     setErrors(newErrors);
@@ -86,16 +103,28 @@ export default function EditProfilePage() {
     setSaved(false);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await apiClient.put('/user/profile', formData);
       setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (error) {
+      success('Profile updated successfully!');
+      setTimeout(() => {
+        setSaved(false);
+        router.push('/profile');
+      }, 2000);
+    } catch (error: any) {
+      showError(error.response?.data?.message || 'Failed to save profile. Please try again.');
       setErrors({ submit: 'Failed to save profile. Please try again.' });
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (userLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -119,7 +148,7 @@ export default function EditProfilePage() {
             <Alert className="border-green-200 bg-green-50">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
               <AlertDescription className="text-green-800">
-                Profile saved successfully!
+                Profile saved successfully! Redirecting...
               </AlertDescription>
             </Alert>
           )}
@@ -158,9 +187,9 @@ export default function EditProfilePage() {
                 value={formData.phone}
                 onChange={(e) => handleChange('phone', e.target.value)}
                 error={errors.phone}
-                required
                 autoComplete="tel"
                 disabled={isLoading}
+                placeholder="+1 234 567 8900"
               />
             </div>
           </div>
@@ -176,9 +205,9 @@ export default function EditProfilePage() {
                 value={formData.address}
                 onChange={(e) => handleChange('address', e.target.value)}
                 error={errors.address}
-                required
                 autoComplete="street-address"
                 disabled={isLoading}
+                placeholder="123 Main Street"
               />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -189,33 +218,34 @@ export default function EditProfilePage() {
                   value={formData.city}
                   onChange={(e) => handleChange('city', e.target.value)}
                   error={errors.city}
-                  required
                   autoComplete="address-level2"
                   disabled={isLoading}
+                  placeholder="New York"
                 />
 
                 <FormInput
-                  label="Country"
-                  name="country"
+                  label="Province/State"
+                  name="province"
                   type="text"
-                  value={formData.country}
-                  onChange={(e) => handleChange('country', e.target.value)}
-                  error={errors.country}
-                  required
-                  autoComplete="country-name"
+                  value={formData.province}
+                  onChange={(e) => handleChange('province', e.target.value)}
+                  error={errors.province}
+                  autoComplete="address-level1"
                   disabled={isLoading}
+                  placeholder="NY"
                 />
               </div>
 
               <FormInput
-                label="Zip Code"
-                name="zipCode"
+                label="Postal Code"
+                name="postal_code"
                 type="text"
-                value={formData.zipCode}
-                onChange={(e) => handleChange('zipCode', e.target.value)}
-                error={errors.zipCode}
+                value={formData.postal_code}
+                onChange={(e) => handleChange('postal_code', e.target.value)}
+                error={errors.postal_code}
                 autoComplete="postal-code"
                 disabled={isLoading}
+                placeholder="10001"
               />
             </div>
           </div>
@@ -233,7 +263,14 @@ export default function EditProfilePage() {
               disabled={isLoading}
               className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              {isLoading ? 'Saving...' : 'Save Changes'}
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
             </Button>
           </div>
         </form>

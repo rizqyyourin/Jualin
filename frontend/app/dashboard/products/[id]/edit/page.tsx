@@ -24,7 +24,6 @@ export default function EditProductPage() {
         price: '',
         stock: '',
         category_id: '',
-        sku: '',
         status: 'active'
     });
 
@@ -43,31 +42,18 @@ export default function EditProductPage() {
             try {
                 const response = await apiClient.get(`/products/${id}`);
                 const product = response.data.data;
+
+                // Backend returns stock as a relation object with quantity property
+                const stockQty = product.stock?.quantity ?? 0;
+
                 setFormData({
                     name: product.name,
                     description: product.description || '',
                     price: product.price,
-                    stock: product.stock?.quantity || 0, // Backend might return nested stock object or flat field? Let's check model. Actually backend returns stock relation, so quantity is inside.
+                    stock: stockQty,
                     category_id: product.category_id,
-                    sku: product.sku,
                     status: product.status
                 });
-
-                // Correction: The backend seeder accessed $product->stock, but API response structure needs verification. 
-                // ProductController: $product->load(['images', 'stock', 'reviews'])
-                // Stock Model: quantity
-                // So it should be product.stock[0].quantity or just product.stock.quantity (if hasOne vs hasMany).
-                // Let's assume stock is hasOne or finding it in the relation.
-                // Re-reading controller: logic is separate. 
-                // Actually in controller index/show, stock is loaded.
-                // Let's safe check keys.
-                // However, standard Laravel structure for relations:
-                // product: { ..., stock: { quantity: 10 } }
-
-                // Let's use a safe accessor
-                const stockQty = product.stock?.quantity ?? product.stock ?? 0;
-
-                setFormData(prev => ({ ...prev, stock: stockQty }));
 
             } catch (error) {
                 console.error('Failed to fetch product:', error);
@@ -93,16 +79,9 @@ export default function EditProductPage() {
         setIsLoading(true);
 
         try {
+            // Backend now supports stock updates in the update endpoint
             const payload = {
                 ...formData,
-                // Ensure stock is updated separately if needed, but here we likely update product fields. 
-                // Wait, does ProductController update stock?
-                // Looking at ProductController.php: update method: $product->update($validated).
-                // It does NOT update Stock model. 
-                // This is a backend limitation we might discover. 
-                // For now, let's just update product fields.
-                // If stock update is separate, this might fail to update stock quantity.
-                // BUT, for 'price', 'name', 'description', it should work.
             };
 
             await apiClient.put(`/products/${id}`, payload);
@@ -200,13 +179,11 @@ export default function EditProductPage() {
                                             name="stock"
                                             type="number"
                                             min="0"
-                                            disabled // Backend doesn't support stock update in product update endpoint yet
-                                            title="Stock management is separate"
-                                            className="flex h-10 w-full rounded-md border border-input bg-gray-100 px-3 py-2 text-sm text-gray-500 cursor-not-allowed"
+                                            required
+                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                             value={formData.stock}
                                             onChange={handleChange}
                                         />
-                                        <p className="text-xs text-orange-500">Stock updates not supported in MVP edit</p>
                                     </div>
                                 </div>
                             </CardContent>

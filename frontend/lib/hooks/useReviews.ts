@@ -53,8 +53,10 @@ export const useReviews = (productId: string | number): UseReviewsReturn => {
     try {
       await reviewAPI.createReview(data);
       await fetchReviews();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Failed to create review');
+    } catch (err: any) {
+      // Extract error message from API response
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to create review';
+      throw new Error(errorMessage);
     }
   };
 
@@ -73,8 +75,9 @@ export const useReviews = (productId: string | number): UseReviewsReturn => {
       const numId = typeof id === 'string' ? parseInt(id, 10) : id;
       await reviewAPI.markHelpful(numId);
       await fetchReviews();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Failed to mark helpful');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to mark helpful';
+      throw new Error(errorMessage);
     }
   };
 
@@ -83,8 +86,9 @@ export const useReviews = (productId: string | number): UseReviewsReturn => {
       const numId = typeof id === 'string' ? parseInt(id, 10) : id;
       await reviewAPI.markUnhelpful(numId);
       await fetchReviews();
-    } catch (err) {
-      throw new Error(err instanceof Error ? err.message : 'Failed to mark unhelpful');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to mark unhelpful';
+      throw new Error(errorMessage);
     }
   };
 

@@ -237,7 +237,7 @@ export default function ProductsPage() {
                       category={product.category || categoryMap[product.category_id]}
                       rating={product.rating}
                       reviews={product.reviews}
-                      inStock={product.inStock || (product.stock ? product.stock > 0 : true)}
+                      inStock={product.inStock || (product.stock?.quantity ? product.stock.quantity > 0 : true)}
                     />
                   ))}
                 </div>

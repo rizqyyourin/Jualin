@@ -91,7 +91,7 @@ export default function OrdersPage() {
             <p className="text-gray-600 mb-6">
               You haven't placed any orders yet. Start shopping now!
             </p>
-            <Link href="/products">
+            <Link href="/shop">
               <Button>Continue Shopping</Button>
             </Link>
           </Card>
@@ -210,7 +210,7 @@ export default function OrdersPage() {
         {/* Continue Shopping */}
         {orders.length > 0 && (
           <div className="mt-8 text-center">
-            <Link href="/products">
+            <Link href="/shop">
               <Button variant="outline" size="lg">
                 Continue Shopping
               </Button>

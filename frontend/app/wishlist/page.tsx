@@ -67,7 +67,7 @@ export default function WishlistPage() {
           <p className="text-gray-600 mb-6">
             Save your favorite items to your wishlist for easy access later!
           </p>
-          <Link href="/products">
+          <Link href="/shop">
             <Button className="bg-blue-600 hover:bg-blue-700">
               Continue Shopping
             </Button>

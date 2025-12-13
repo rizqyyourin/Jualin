@@ -6,8 +6,10 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Product;
+use App\Models\Cart;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\Builder;
 
 class OrderController extends Controller
@@ -26,7 +28,7 @@ class OrderController extends Controller
             $orders = Order::whereHas('items.product', function (Builder $query) {
                 $query->where('user_id', auth()->id());
             })->with('items', 'statusHistory', 'customer')
-            ->paginate($request->get('per_page', 15));
+                ->paginate($request->get('per_page', 15));
         } else {
             // Customer sees their own orders
             $orders = Order::where('customer_id', $user->id)
@@ -161,6 +163,129 @@ class OrderController extends Controller
             'message' => 'Order created successfully',
             'data' => $order,
         ], 201);
+    }
+
+    /**
+     * Create order from cart
+     * Simplified checkout: create order directly from cart items
+     */
+    public function createFromCart(Request $request)
+    {
+        $user = auth()->user();
+
+        // Get user's cart
+        $cart = Cart::where('user_id', $user->id)->with(['items.product.stock'])->first();
+
+        if (!$cart || $cart->items->isEmpty()) {
+            return response()->json([
+                'message' => 'Cart is empty',
+            ], 422);
+        }
+
+        $validated = $request->validate([
+            'payment_method' => 'required|string|in:credit_card,paypal,bank_transfer,cash_on_delivery',
+            'shipping_address' => 'required|array',
+            'shipping_address.recipient_name' => 'required|string',
+            'shipping_address.phone' => 'required|string',
+            'shipping_address.address' => 'required|string',
+            'shipping_address.city' => 'required|string',
+            'shipping_address.province' => 'required|string',
+            'shipping_address.postal_code' => 'required|string',
+            'notes' => 'nullable|string',
+        ]);
+
+        // Start transaction
+        DB::beginTransaction();
+
+        try {
+            // Validate stock availability
+            foreach ($cart->items as $cartItem) {
+                $product = $cartItem->product;
+                $stockQuantity = $product->stock->quantity ?? 0;
+
+                if ($cartItem->quantity > $stockQuantity) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Insufficient stock for {$product->name}. Only {$stockQuantity} available.",
+                    ], 422);
+                }
+            }
+
+            // Get merchant_id from first item's product
+            $firstProduct = $cart->items->first()->product;
+            $merchantId = $firstProduct->user_id;
+
+            // Create order
+            $order = Order::create([
+                'user_id' => $user->id,
+                'merchant_id' => $merchantId,
+                'order_number' => Order::generateOrderNumber(),
+                'status' => 'confirmed',
+                'payment_status' => 'pending',
+                'payment_method' => $validated['payment_method'],
+                'shipping_status' => 'pending',
+                'shipping_address' => $validated['shipping_address'],
+                'customer_notes' => $validated['notes'] ?? null,
+            ]);
+
+            $totalPrice = 0;
+
+            // Create order items and reduce stock
+            foreach ($cart->items as $cartItem) {
+                $product = $cartItem->product;
+                $total = ($cartItem->price * $cartItem->quantity);
+
+                // Create order item
+                OrderItem::create([
+                    'order_id' => $order->id,
+                    'product_id' => $product->id,
+                    'quantity' => $cartItem->quantity,
+                    'unit_price' => $cartItem->price,
+                    'total_price' => $total,
+                ]);
+
+                // Reduce stock
+                $product->stock->decrement('quantity', $cartItem->quantity);
+
+                $totalPrice += $total;
+            }
+
+            // Update order total price
+            $order->update(['total_price' => $totalPrice]);
+
+            // Create initial status history
+            OrderStatusHistory::create([
+                'order_id' => $order->id,
+                'status' => 'confirmed',
+                'notes' => 'Order created from cart',
+                'changed_by' => $user->id,
+            ]);
+
+            // Clear cart
+            $cart->items()->delete();
+            $cart->update([
+                'subtotal' => 0,
+                'tax' => 0,
+                'shipping_cost' => 0,
+                'discount' => 0,
+                'total' => 0,
+            ]);
+
+            DB::commit();
+
+            $order->load('items.product', 'statusHistory');
+
+            return response()->json([
+                'message' => 'Order created successfully',
+                'data' => $order,
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to create order: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**

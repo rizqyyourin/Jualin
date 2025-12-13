@@ -80,17 +80,51 @@ export default function ProductListPage() {
         }
     }, [isAuthenticated, user?.id]);
 
-    const handleDelete = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this product?')) return;
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
 
+    const handleDeleteClick = (id: number) => {
+        console.log('Delete clicked for product:', id);
+        setConfirmDeleteId(id);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!confirmDeleteId) return;
+
+        const id = confirmDeleteId;
+        setConfirmDeleteId(null);
+
+        console.log('Deleting product:', id);
+        console.log('User:', user);
+        console.log('Auth token exists:', !!localStorage.getItem('authToken'));
+
+        setDeletingId(id);
         try {
-            await apiClient.delete(`/products/${id}`);
-            // Refresh list
+            const response = await apiClient.delete(`/products/${id}`);
+            console.log('Delete response:', response);
+
+            // Refresh list by removing the deleted product
             setProducts(prev => prev.filter(p => p.id !== id));
-        } catch (error) {
+
+            // Show success toast
+            setShowSuccessToast(true);
+            setTimeout(() => setShowSuccessToast(false), 3000);
+        } catch (error: any) {
             console.error('Failed to delete product:', error);
-            alert('Failed to delete product');
+            console.error('Error response:', error.response?.data);
+            console.error('Error status:', error.response?.status);
+            console.error('Error headers:', error.response?.headers);
+
+            const errorMessage = error.response?.data?.message || 'Failed to delete product. Please try again.';
+            alert(errorMessage);
+        } finally {
+            setDeletingId(null);
         }
+    };
+
+    const handleCancelDelete = () => {
+        setConfirmDeleteId(null);
     };
 
     const filteredProducts = products.filter(product =>
@@ -231,10 +265,18 @@ export default function ProductListPage() {
                                                                 </DropdownMenuItem>
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem
-                                                                    className="text-red-600 focus:text-red-600"
-                                                                    onClick={() => handleDelete(product.id)}
+                                                                    className="text-red-600 focus:text-red-600 cursor-pointer"
+                                                                    onClick={() => {
+                                                                        console.log('Delete clicked!');
+                                                                        handleDeleteClick(product.id);
+                                                                    }}
                                                                 >
-                                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                                                                    {deletingId === product.id ? (
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                                    ) : (
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                    )}
+                                                                    {deletingId === product.id ? 'Deleting...' : 'Delete'}
                                                                 </DropdownMenuItem>
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
@@ -249,6 +291,43 @@ export default function ProductListPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            {confirmDeleteId && (
+                <div
+                    className="fixed inset-0 flex items-center justify-center z-50"
+                    style={{ backgroundColor: 'rgba(0, 0, 0, 0.5)' }}
+                >
+                    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Product</h3>
+                        <p className="text-gray-600 mb-6">Are you sure you want to delete this product? This action cannot be undone.</p>
+                        <div className="flex justify-end gap-3">
+                            <Button variant="outline" onClick={handleCancelDelete}>
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                onClick={handleConfirmDelete}
+                                className="bg-red-600 hover:bg-red-700"
+                            >
+                                Delete
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Toast */}
+            {showSuccessToast && (
+                <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top">
+                    <div className="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-medium">Product deleted successfully!</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

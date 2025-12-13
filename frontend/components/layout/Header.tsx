@@ -100,18 +100,6 @@ export default function Header() {
                 Dashboard
               </Link>
             )}
-            <Link
-              href="/about"
-              className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
-            >
-              About
-            </Link>
-            <Link
-              href="/contact"
-              className={`text-sm font-medium transition-colors ${isActive('/contact') ? 'text-primary' : 'text-gray-700 hover:text-primary'}`}
-            >
-              Contact
-            </Link>
           </nav>
 
           {/* Right Side Icons */}

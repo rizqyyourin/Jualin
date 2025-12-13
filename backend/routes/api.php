@@ -12,6 +12,7 @@ use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\MerchantAnalyticsController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -25,6 +26,8 @@ Route::group(['prefix' => 'auth'], function () {
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/{product}', [ProductController::class, 'show'])->name('products.show');
 Route::get('/products/{product}/reviews', [ReviewController::class, 'index'])->name('reviews.index');
+Route::get('/products/{product}/recommendations', [ProductController::class, 'recommendations'])->name('products.recommendations');
+Route::get('/products/{product}/reviews/stats', [ProductController::class, 'reviewStats'])->name('products.reviewStats');
 
 // Public category routes
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
@@ -38,6 +41,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout'])->name('auth.logout');
         Route::post('/refresh', [AuthController::class, 'refresh'])->name('auth.refresh');
     });
+
+    // User profile endpoints
+    Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
+    Route::put('/user/profile', [UserController::class, 'updateProfile'])->name('user.updateProfile');
+    Route::put('/user/password', [UserController::class, 'updatePassword'])->name('user.updatePassword');
+
 
     // Product endpoints
     Route::post('/products', [ProductController::class, 'store'])->name('products.store');
@@ -54,9 +63,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Order endpoints
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
+    Route::post('/orders/from-cart', [OrderController::class, 'createFromCart'])->name('orders.createFromCart');
     Route::get('/orders/{order}', [OrderController::class, 'show'])->name('orders.show');
     Route::put('/orders/{order}/status', [OrderController::class, 'updateStatus'])->name('orders.updateStatus');
     Route::post('/orders/{order}/cancel', [OrderController::class, 'cancel'])->name('orders.cancel');
+
 
     // Customer Address endpoints
     Route::get('/addresses', [CustomerAddressController::class, 'index'])->name('addresses.index');
@@ -72,6 +83,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/reviews/{review}', [ReviewController::class, 'update'])->name('reviews.update');
     Route::delete('/reviews/{review}', [ReviewController::class, 'destroy'])->name('reviews.destroy');
     Route::post('/reviews/{review}/helpful', [ReviewController::class, 'markHelpful'])->name('reviews.helpful');
+    Route::post('/reviews/{review}/unhelpful', [ReviewController::class, 'markUnhelpful'])->name('reviews.unhelpful');
     Route::post('/reviews/{review}/approve', [ReviewController::class, 'approve'])->name('reviews.approve');
     Route::post('/reviews/{review}/reject', [ReviewController::class, 'reject'])->name('reviews.reject');
 

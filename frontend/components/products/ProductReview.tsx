@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { useReviews } from '@/lib/hooks/useReviews';
 import { useNotifications } from '@/lib/stores/notificationStore';
 import { useLoadingStore } from '@/lib/stores/loadingStore';
+import { useUserStore } from '@/lib/stores/userStore';
 
 interface ProductReviewProps {
   productId: string | number;
@@ -17,6 +18,7 @@ export const ProductReview = ({ productId, onReviewAdded }: ProductReviewProps) 
   const { reviews, stats, loading, error, createReview, deleteReview, markHelpful, markUnhelpful } = useReviews(productId);
   const { success, error: errorNotif } = useNotifications();
   const { setLoading: setLoadingState } = useLoadingStore();
+  const { user } = useUserStore();
 
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -69,7 +71,7 @@ export const ProductReview = ({ productId, onReviewAdded }: ProductReviewProps) 
     try {
       await markHelpful(reviewId);
     } catch (err) {
-      console.error(err);
+      errorNotif(err instanceof Error ? err.message : 'Failed to mark as helpful');
     }
   };
 
@@ -77,7 +79,7 @@ export const ProductReview = ({ productId, onReviewAdded }: ProductReviewProps) 
     try {
       await markUnhelpful(reviewId);
     } catch (err) {
-      console.error(err);
+      errorNotif(err instanceof Error ? err.message : 'Failed to mark as unhelpful');
     }
   };
 
@@ -246,16 +248,19 @@ export const ProductReview = ({ productId, onReviewAdded }: ProductReviewProps) 
                   </div>
                   <h4 className="font-semibold text-gray-900">{review.title}</h4>
                   <p className="text-xs text-gray-500">
-                    by {review.user_name} • {review.created_at}
+                    by {review.user?.name || review.user_name || 'Anonymous'} • {review.created_at}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDeleteReview(review.id)}
-                  className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
-                  title="Delete review"
-                >
-                  <Trash2 size={16} />
-                </button>
+                {/* Only show delete button if user owns this review */}
+                {user && review.user_id === user.id && (
+                  <button
+                    onClick={() => handleDeleteReview(review.id)}
+                    className="rounded-lg p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                    title="Delete review"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
               </div>
 
               <p className="text-sm text-gray-700">{review.comment}</p>
@@ -264,16 +269,22 @@ export const ProductReview = ({ productId, onReviewAdded }: ProductReviewProps) 
                 <div className="text-xs text-gray-600">Was this helpful?</div>
                 <button
                   onClick={() => handleMarkHelpful(review.id)}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-green-50 hover:text-green-600"
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${review.user_vote === 'helpful'
+                      ? 'bg-green-100 text-green-700 font-semibold'
+                      : 'hover:bg-green-50 hover:text-green-600'
+                    }`}
                 >
-                  <ThumbsUp size={14} />
+                  <ThumbsUp size={14} className={review.user_vote === 'helpful' ? 'fill-current' : ''} />
                   <span className="text-xs">{review.helpful_count || 0}</span>
                 </button>
                 <button
                   onClick={() => handleMarkUnhelpful(review.id)}
-                  className="flex items-center gap-1 rounded-lg px-2 py-1 transition-colors hover:bg-red-50 hover:text-red-600"
+                  className={`flex items-center gap-1 rounded-lg px-2 py-1 transition-colors ${review.user_vote === 'unhelpful'
+                      ? 'bg-red-100 text-red-700 font-semibold'
+                      : 'hover:bg-red-50 hover:text-red-600'
+                    }`}
                 >
-                  <ThumbsDown size={14} />
+                  <ThumbsDown size={14} className={review.user_vote === 'unhelpful' ? 'fill-current' : ''} />
                   <span className="text-xs">{review.unhelpful_count || 0}</span>
                 </button>
               </div>

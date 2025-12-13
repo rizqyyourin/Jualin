@@ -2,15 +2,10 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart, Loader2 } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { WishlistButton } from './WishlistButton';
-import { useAuthModal } from '@/components/auth/AuthModalProvider';
-import { useUserStore } from '@/lib/stores/userStore';
-import { useCartStore } from '@/lib/stores/cartStore';
-import { useNotifications } from '@/lib/stores/notificationStore';
-import { useState } from 'react';
 
 interface ProductCardProps {
   id: string | number;
@@ -35,30 +30,6 @@ export function ProductCard({
   inStock = true,
   className,
 }: ProductCardProps) {
-  const { isAuthenticated } = useUserStore();
-  const { openLoginModal } = useAuthModal();
-  const addToCart = useCartStore((state) => state.addItem);
-  const { success, error } = useNotifications();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isAuthenticated) {
-      openLoginModal();
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      addToCart(typeof id === 'string' ? parseInt(id, 10) : id, 1);
-      success(`${name} added to cart!`);
-    } catch (err) {
-      error('Failed to add to cart');
-    } finally {
-      setIsLoading(false);
-    }
-  };
   return (
     <Card className={`group overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col ${className || ''}`}>
       {/* Product Details Link - clickable */}
@@ -146,25 +117,17 @@ export function ProductCard({
         </div>
       </Link>
 
-      {/* Add to Cart Button - Outside Link */}
+      {/* Add to Cart Button - Links to Detail Page */}
       <div className="p-4 border-t">
-        <button
-          onClick={handleAddToCart}
-          disabled={!inStock || isLoading}
-          className="w-full bg-primary hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-primary-foreground py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Adding...
-            </>
-          ) : (
-            <>
-              <ShoppingCart className="w-4 h-4" />
-              Add to Cart
-            </>
-          )}
-        </button>
+        <Link href={`/shop/${id}`}>
+          <Button
+            disabled={!inStock}
+            className="w-full bg-primary hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-primary-foreground py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Add to Cart
+          </Button>
+        </Link>
       </div>
     </Card>
   );

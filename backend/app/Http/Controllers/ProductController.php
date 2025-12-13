@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -16,19 +17,22 @@ class ProductController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Product::query()
-            ->where('status', 'active');
+        $query = Product::query();
+
+        // Filter by merchant
+        if ($request->has('user_id')) {
+            // Merchant viewing their own products - show all statuses
+            $query->where('user_id', $request->user_id);
+        } else {
+            // Public browsing - only show active products
+            $query->where('status', 'active');
+        }
 
         // Filter by category (supports both 'category' and 'category_id')
         if ($request->has('category')) {
             $query->where('category_id', $request->category);
         } elseif ($request->has('category_id')) {
             $query->where('category_id', $request->category_id);
-        }
-
-        // Filter by merchant
-        if ($request->has('user_id')) {
-            $query->where('user_id', $request->user_id);
         }
 
         // Search by name or sku
@@ -93,7 +97,9 @@ class ProductController extends Controller
 
         // Pagination
         $perPage = $request->get('per_page', 15);
-        $products = $query->paginate($perPage);
+
+        // Eager load stock relation
+        $products = $query->with('stock')->paginate($perPage);
 
         return response()->json([
             'message' => 'Products retrieved successfully',
@@ -154,11 +160,13 @@ class ProductController extends Controller
         $baseData['is_featured'] = $baseData['is_featured'] ?? false;
 
         // Auto-generate hidden SKU since it's removed from architecture but required by DB
-        $baseData['sku'] = (string) \Str::uuid();
+        $baseData['sku'] = (string) Str::uuid();
 
         // Generate slug if not provided
         if (empty($baseData['slug'] ?? null)) {
-            $baseData['slug'] = \Str::slug($baseData['name']);
+            // Generate unique slug with timestamp to avoid conflicts
+            $baseSlug = Str::slug($baseData['name']);
+            $baseData['slug'] = $baseSlug . '-' . time();
         }
 
         $product = Product::create($baseData);
@@ -312,6 +320,52 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Image deleted successfully',
+        ]);
+    }
+
+    /**
+     * Get product recommendations
+     */
+    public function recommendations(Product $product, Request $request)
+    {
+        $limit = $request->get('limit', 6);
+        $type = $request->get('type', 'similar');
+
+        // For now, return products from the same category
+        $recommendations = Product::where('category_id', $product->category_id)
+            ->where('id', '!=', $product->id)
+            ->where('status', 'active')
+            ->with('stock')
+            ->inRandomOrder()
+            ->limit($limit)
+            ->get();
+
+        return response()->json([
+            'data' => $recommendations,
+        ]);
+    }
+
+    /**
+     * Get review statistics for a product
+     */
+    public function reviewStats(Product $product)
+    {
+        $reviews = $product->reviews()->get();
+
+        $stats = [
+            'average_rating' => $reviews->avg('rating') ?? 0,
+            'total_reviews' => $reviews->count(),
+            'rating_distribution' => [
+                5 => $reviews->where('rating', 5)->count(),
+                4 => $reviews->where('rating', 4)->count(),
+                3 => $reviews->where('rating', 3)->count(),
+                2 => $reviews->where('rating', 2)->count(),
+                1 => $reviews->where('rating', 1)->count(),
+            ],
+        ];
+
+        return response()->json([
+            'data' => $stats,
         ]);
     }
 }

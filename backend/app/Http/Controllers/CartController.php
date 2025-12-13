@@ -30,7 +30,7 @@ class CartController extends Controller
                 'shipping_cost' => $cart->shipping_cost,
                 'discount' => $cart->discount,
                 'total' => $cart->total,
-                'items' => $cart->items()->with('product')->get()->map(fn($item) => [
+                'items' => $cart->items()->with(['product', 'product.stock'])->get()->map(fn($item) => [
                     'id' => $item->id,
                     'product_id' => $item->product_id,
                     'product' => [
@@ -38,6 +38,9 @@ class CartController extends Controller
                         'name' => $item->product->name,
                         'price' => $item->product->price,
                         'image' => $item->product->images->first()?->image_path,
+                        'stock' => $item->product->stock ? [
+                            'quantity' => $item->product->stock->quantity,
+                        ] : null,
                     ],
                     'quantity' => $item->quantity,
                     'price' => $item->price,

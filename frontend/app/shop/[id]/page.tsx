@@ -26,6 +26,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
   const { isAuthenticated } = useUserStore();
   const { openLoginModal } = useAuthModal();
   const addToCart = useCartStore((state) => state.addItem);
+  const cart = useCartStore((state) => state.cart);
   const { success, error: showError } = useNotifications();
 
   if (loading) {
@@ -55,11 +56,33 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
-  const isInStock = product.stock && product.stock.quantity > 0;
+  const stockQuantity = product.stock?.quantity || 0;
+  const isInStock = stockQuantity > 0;
+
+  // Calculate how many of this product are already in cart
+  const productId = typeof product.id === 'string' ? parseInt(product.id, 10) : product.id;
+  const inCartQuantity = cart?.items?.find((item: any) => item.product_id === productId)?.quantity || 0;
+
+  // Available stock = total stock - already in cart
+  const availableStock = Math.max(0, stockQuantity - inCartQuantity);
+  const maxQuantity = Math.max(1, availableStock);
+  const canAddToCart = availableStock > 0;
 
   const handleAddToCart = async () => {
     if (!isAuthenticated) {
       openLoginModal();
+      return;
+    }
+
+    // Validate quantity against available stock (after considering cart)
+    if (!canAddToCart) {
+      showError('This product is already in your cart with maximum available quantity');
+      return;
+    }
+
+    if (quantity > availableStock) {
+      showError(`Only ${availableStock} units available (${inCartQuantity} already in cart)`);
+      setQuantity(Math.min(quantity, availableStock));
       return;
     }
 
@@ -76,10 +99,42 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     }
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: product.name,
+          text: `Check out ${product.name} on Jualin!`,
+          url: url,
+        });
+      } catch (err) {
+        // User cancelled or error occurred
+        copyToClipboard(url);
+      }
+    } else {
+      copyToClipboard(url);
+    }
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    success('Product link copied to clipboard!');
+  };
+
+  const handleQuantityChange = (newQuantity: number) => {
+    // Ensure quantity is between 1 and stock quantity
+    const validQuantity = Math.max(1, Math.min(newQuantity, maxQuantity));
+    setQuantity(validQuantity);
+  };
+
   return (
     <div className="space-y-12">
-      <div className="flex items-center gap-2 text-sm text-gray-600 mb-8">
-        <Link href="/shop" className="hover:text-primary flex items-center gap-1 transition-colors">
+      <div className="mb-8">
+        <Link
+          href="/shop"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-primary hover:border-primary transition-all shadow-sm hover:shadow"
+        >
           <ChevronLeft className="w-4 h-4" />
           Back to Products
         </Link>
@@ -107,17 +162,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
             )}
-            {/* Discount Badge if needed in future */}
           </div>
-          {/* Thumbnail gallery could go here */}
         </div>
 
         <div className="space-y-8">
           <div>
             <div className="flex items-center justify-between mb-4">
-              {/* <Badge variant="secondary" className="px-3 py-1 font-medium tracking-wide">
-                {product.sku}
-              </Badge> */}
               <div className="flex-1"></div>
               <WishlistButton
                 item={{
@@ -144,11 +194,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                 </div>
               </div>
               <div className="text-right">
-                {/* <p className="text-sm text-gray-500 mb-1">Status</p> */}
+                <p className="text-sm text-gray-500 mb-1">Stock</p>
                 {isInStock ? (
-                  <span className="inline-flex items-center gap-1.5 text-emerald-600 font-bold bg-emerald-50 px-3 py-1 rounded-full text-sm">
-                    <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-                    In Stock
+                  <span className="inline-flex items-center gap-1.5 text-emerald-600 font-bold text-lg">
+                    {stockQuantity} units
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-red-600 font-bold bg-red-50 px-3 py-1 rounded-full text-sm">
@@ -164,21 +213,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             <p className="text-gray-700 leading-relaxed">{product.description}</p>
           </div>
 
-          <div className="space-y-3 border-t pt-6">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-gray-700">Quantity:</span>
-              <div className="flex items-center gap-4 border rounded-lg p-1">
+          <div className="space-y-4 border-t pt-6">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">Quantity:</span>
+              <div className="flex items-center gap-2 border-2 rounded-lg p-1">
                 <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-md transition"
+                  onClick={() => handleQuantityChange(quantity - 1)}
+                  disabled={quantity <= 1}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
                 >
                   −
                 </button>
-                <span className="w-8 text-center font-semibold">{quantity}</span>
+                <span className="w-12 text-center font-semibold">{quantity}</span>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
-                  disabled={!isInStock}
-                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-md transition disabled:opacity-50"
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  disabled={!isInStock || quantity >= maxQuantity}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-gray-100 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed font-bold text-lg"
                 >
                   +
                 </button>
@@ -186,30 +236,26 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
 
               <button
                 onClick={handleAddToCart}
-                disabled={!isInStock || isAddingToCart}
-                className="flex-1 bg-primary hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-primary-foreground py-4 rounded-lg font-bold text-lg transition flex items-center justify-center gap-2 shadow-lg hover:shadow-xl shadow-primary/20"
+                disabled={!canAddToCart || isAddingToCart || quantity > availableStock}
+                className="flex-1 h-12 bg-primary hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed text-primary-foreground rounded-lg transition flex items-center justify-center shadow-lg hover:shadow-xl shadow-primary/20"
+                title="Add to Cart"
               >
                 {isAddingToCart ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Adding to Cart...
-                  </>
+                  <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
-                  <>
-                    <ShoppingCart className="w-5 h-5" />
-                    Add to Cart
-                  </>
+                  <ShoppingCart className="w-5 h-5" />
                 )}
               </button>
+
+              <button
+                onClick={handleShare}
+                className="flex-1 h-12 border-2 border-primary text-primary hover:bg-primary hover:text-white rounded-lg transition flex items-center justify-center"
+                title="Share Product"
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
             </div>
-
-            <button className="w-full border-2 border-primary text-primary hover:bg-primary/5 py-4 rounded-lg font-bold transition flex items-center justify-center gap-2 mt-4">
-              <Share2 className="w-5 h-5" />
-              Share Product
-            </button>
           </div>
-
-          {/* Removed Technical Details Card as requested */}
         </div>
       </div>
       <div>

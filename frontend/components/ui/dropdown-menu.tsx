@@ -86,7 +86,19 @@ DropdownMenuContent.displayName = "DropdownMenuContent"
 const DropdownMenuItem = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement> & { asChild?: boolean }
->(({ className, children, asChild, ...props }, ref) => {
+>(({ className, children, asChild, onClick, ...props }, ref) => {
+    const context = React.useContext(DropdownMenuContext);
+
+    const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+        // Close dropdown when item is clicked
+        if (context) {
+            context.setIsOpen(false);
+        }
+        // Delay the onClick handler to allow dropdown to fully close
+        setTimeout(() => {
+            onClick?.(e);
+        }, 150);
+    };
 
     if (asChild) {
         // Basic slot support
@@ -97,6 +109,10 @@ const DropdownMenuItem = React.forwardRef<
                 className,
                 child.props.className
             ),
+            onClick: (e: React.MouseEvent<HTMLElement>) => {
+                handleClick(e as any);
+                child.props.onClick?.(e);
+            },
             ref
         } as any);
     }
@@ -108,6 +124,7 @@ const DropdownMenuItem = React.forwardRef<
                 "relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 hover:bg-gray-100 cursor-pointer",
                 className
             )}
+            onClick={handleClick}
             {...props}
         >
             {children}

@@ -20,6 +20,25 @@ class ReviewController extends Controller
             ->orderBy('created_at', 'desc')
             ->paginate($request->get('per_page', 10));
 
+        // Add user vote status if authenticated
+        if (auth()->check()) {
+            $userId = auth()->id();
+            $reviewIds = $reviews->pluck('id');
+
+            // Get user's votes for these reviews
+            $userVotes = \DB::table('review_votes')
+                ->whereIn('review_id', $reviewIds)
+                ->where('user_id', $userId)
+                ->get()
+                ->keyBy('review_id');
+
+            // Add vote status to each review
+            $reviews->getCollection()->transform(function ($review) use ($userVotes) {
+                $review->user_vote = $userVotes->get($review->id)?->vote_type ?? null;
+                return $review;
+            });
+        }
+
         return response()->json([
             'message' => 'Reviews retrieved successfully',
             'data' => $reviews,
@@ -47,43 +66,52 @@ class ReviewController extends Controller
     {
         $validated = $request->validate([
             'product_id' => 'required|exists:products,id',
-            'order_id' => 'required|exists:orders,id',
+            'order_id' => 'nullable|exists:orders,id', // Made optional
             'rating' => 'required|integer|min:1|max:5',
-            'title' => 'required|string|max:255',
+            'title' => 'nullable|string|max:255',
             'comment' => 'nullable|string|max:2000',
             'images' => 'nullable|array|max:5',
             'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
+        \Log::info('Review validation passed', ['validated' => $validated, 'user_id' => auth()->id()]);
+
         $user = auth()->user();
 
-        // Verify order belongs to user and contains this product
-        $order = $user->orders()->find($validated['order_id']);
-        if (!$order) {
-            return response()->json([
-                'message' => 'Order not found',
-            ], 404);
-        }
+        // Verify order if provided
+        if (!empty($validated['order_id'])) {
+            $order = $user->orders()->find($validated['order_id']);
+            if (!$order) {
+                return response()->json([
+                    'message' => 'Order not found',
+                ], 404);
+            }
 
-        $productInOrder = $order->items()
-            ->where('product_id', $validated['product_id'])
-            ->exists();
+            $productInOrder = $order->items()
+                ->where('product_id', $validated['product_id'])
+                ->exists();
 
-        if (!$productInOrder) {
-            return response()->json([
-                'message' => 'Product not in this order',
-            ], 422);
+            if (!$productInOrder) {
+                return response()->json([
+                    'message' => 'Product not in this order',
+                ], 422);
+            }
         }
 
         // Check if already reviewed
         $existingReview = Review::where('product_id', $validated['product_id'])
-            ->where('user_id', $user->id)
-            ->where('order_id', $validated['order_id'])
-            ->exists();
+            ->where('user_id', $user->id);
 
-        if ($existingReview) {
+        if (!empty($validated['order_id'])) {
+            $existingReview->where('order_id', $validated['order_id']);
+        }
+
+        if ($existingReview->exists()) {
             return response()->json([
                 'message' => 'You have already reviewed this product',
+                'errors' => [
+                    'product_id' => ['You have already reviewed this product']
+                ]
             ], 422);
         }
 
@@ -100,12 +128,12 @@ class ReviewController extends Controller
         $review = Review::create([
             'product_id' => $validated['product_id'],
             'user_id' => $user->id,
-            'order_id' => $validated['order_id'],
+            'order_id' => $validated['order_id'] ?? null,
             'rating' => $validated['rating'],
             'title' => $validated['title'],
             'comment' => $validated['comment'] ?? null,
             'images' => $images,
-            'status' => 'pending', // Reviews need approval by default
+            'status' => 'approved', // Auto-approve reviews
         ]);
 
         $review->load('user', 'product');
@@ -177,11 +205,102 @@ class ReviewController extends Controller
      */
     public function markHelpful(Review $review)
     {
-        $review->increment('helpful_count');
+        $user = auth()->user();
+
+        \Log::info('markHelpful called', [
+            'review_id' => $review->id,
+            'user_id' => $user->id,
+        ]);
+
+        // Check if user already voted
+        $existingVote = \DB::table('review_votes')
+            ->where('review_id', $review->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        \Log::info('Existing vote check', [
+            'existing_vote' => $existingVote ? $existingVote->vote_type : 'none',
+        ]);
+
+        if ($existingVote) {
+            if ($existingVote->vote_type === 'helpful') {
+                \Log::info('User already voted helpful');
+                return response()->json([
+                    'message' => 'You have already marked this review as helpful',
+                ], 422);
+            }
+
+            // Switch from unhelpful to helpful
+            \DB::table('review_votes')
+                ->where('review_id', $review->id)
+                ->where('user_id', $user->id)
+                ->update(['vote_type' => 'helpful', 'updated_at' => now()]);
+
+            $review->decrement('unhelpful_count');
+            $review->increment('helpful_count');
+        } else {
+            // New vote
+            \DB::table('review_votes')->insert([
+                'review_id' => $review->id,
+                'user_id' => $user->id,
+                'vote_type' => 'helpful',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $review->increment('helpful_count');
+        }
 
         return response()->json([
             'message' => 'Thank you for your feedback',
-            'data' => $review,
+            'data' => $review->fresh(),
+        ]);
+    }
+
+    /**
+     * Mark review as unhelpful
+     */
+    public function markUnhelpful(Review $review)
+    {
+        $user = auth()->user();
+
+        // Check if user already voted
+        $existingVote = \DB::table('review_votes')
+            ->where('review_id', $review->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if ($existingVote) {
+            if ($existingVote->vote_type === 'unhelpful') {
+                return response()->json([
+                    'message' => 'You have already marked this review as unhelpful',
+                ], 422);
+            }
+
+            // Switch from helpful to unhelpful
+            \DB::table('review_votes')
+                ->where('review_id', $review->id)
+                ->where('user_id', $user->id)
+                ->update(['vote_type' => 'unhelpful', 'updated_at' => now()]);
+
+            $review->decrement('helpful_count');
+            $review->increment('unhelpful_count');
+        } else {
+            // New vote
+            \DB::table('review_votes')->insert([
+                'review_id' => $review->id,
+                'user_id' => $user->id,
+                'vote_type' => 'unhelpful',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            $review->increment('unhelpful_count');
+        }
+
+        return response()->json([
+            'message' => 'Thank you for your feedback',
+            'data' => $review->fresh(),
         ]);
     }
 

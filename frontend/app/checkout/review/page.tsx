@@ -46,7 +46,7 @@ export default function ReviewPage() {
     setIsLoading(false);
   }, [isMounted]);
 
-  const subtotal = getTotalPrice();
+  const subtotal = Number(getTotalPrice()) || 0;
   const shippingMethods: Record<string, number> = {
     standard: 10,
     express: 25,

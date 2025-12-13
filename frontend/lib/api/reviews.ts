@@ -15,6 +15,7 @@ export interface ProductReview {
   };
   helpful_count?: number;
   unhelpful_count?: number;
+  user_vote?: 'helpful' | 'unhelpful' | null;
   verified_purchase?: boolean;
   created_at?: string;
   updated_at?: string;

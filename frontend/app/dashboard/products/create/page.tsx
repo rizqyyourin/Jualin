@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import apiClient from '@/lib/api';
 import { useUserStore } from '@/lib/stores/userStore';
+import { useCategories } from '@/lib/hooks/useCategories';
 
 export default function CreateProductPage() {
     const router = useRouter();
+    const { categories } = useCategories();
     const { user, isAuthenticated, isLoading: isAuthLoading } = useUserStore();
 
     // Protect route
@@ -50,20 +52,17 @@ export default function CreateProductPage() {
         setIsLoading(true);
 
         try {
-            // Generate a random SKU for now if not provided
-            // effectively acting as "auto-generate"
+            // Backend auto-generates SKU, so we don't need to send it
             const payload = {
                 ...formData,
-                sku: `SKU-${Date.now()}`,
                 status: 'active', // Default to active for immediate visibility
                 is_featured: false,
-                category_id: 1, // Defaulting to Electronics (ID 1) for this quick test since dropdown isn't populated dynamically yet
             };
 
             await apiClient.post('/products', payload);
 
-            // Redirect to dashboard (or product list)
-            router.push('/dashboard');
+            // Redirect to product list
+            router.push('/dashboard/products');
         } catch (error) {
             console.error('Error creating product:', error);
             alert('Failed to create product. Please try again.');
@@ -118,6 +117,25 @@ export default function CreateProductPage() {
                                         value={formData.description}
                                         onChange={handleChange}
                                     />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label htmlFor="category_id" className="text-sm font-medium text-gray-700">Category</label>
+                                    <select
+                                        id="category_id"
+                                        name="category_id"
+                                        required
+                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                        value={formData.category_id}
+                                        onChange={handleChange}
+                                    >
+                                        <option value="">Select a category</option>
+                                        {categories.map((category) => (
+                                            <option key={category.id} value={category.id}>
+                                                {category.name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </CardContent>
                         </Card>

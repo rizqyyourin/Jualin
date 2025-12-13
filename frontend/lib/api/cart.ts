@@ -15,6 +15,10 @@ export interface CartItem {
     name: string;
     slug: string;
     sku: string;
+    image?: string;
+    stock?: {
+      quantity: number;
+    };
   };
 }
 
