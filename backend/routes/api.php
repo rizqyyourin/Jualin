@@ -13,6 +13,7 @@ use App\Http\Controllers\ShippingController;
 use App\Http\Controllers\MerchantAnalyticsController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\ChatbotController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -135,6 +136,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/users/{userId}', [AdminController::class, 'deleteUser'])->name('admin.deleteUser');
         Route::get('/statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
         Route::get('/products', [AdminController::class, 'searchProducts'])->name('admin.products');
+    });
+
+    // Chatbot endpoints (authenticated + guest via optional auth)
+    Route::group(['prefix' => 'chatbot'], function () {
+        Route::post('/message', [ChatbotController::class, 'sendMessage'])->name('chatbot.message')->withoutMiddleware('auth:sanctum');
+        Route::get('/conversation/{sessionId}', [ChatbotController::class, 'getConversation'])->name('chatbot.conversation')->withoutMiddleware('auth:sanctum');
+        Route::delete('/conversation/{sessionId}', [ChatbotController::class, 'clearConversation'])->name('chatbot.clear')->withoutMiddleware('auth:sanctum');
+        Route::post('/recommendations', [ChatbotController::class, 'getRecommendations'])->name('chatbot.recommendations');
     });
 });
 

@@ -4,6 +4,7 @@ import "./globals.css";
 import MainLayout from "@/components/layout/MainLayout";
 import { NotificationContainer } from "@/components/notifications/NotificationContainer";
 import { AuthModalProvider } from "@/components/auth/AuthModalProvider";
+import Chatbot from "@/components/chatbot/Chatbot";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,6 +54,7 @@ export default function RootLayout({
         <AuthModalProvider>
           <MainLayout>{children}</MainLayout>
           <NotificationContainer />
+          <Chatbot />
         </AuthModalProvider>
       </body>
     </html>
