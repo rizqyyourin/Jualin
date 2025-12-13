@@ -15,5 +15,8 @@ COPY . .
 # Expose port 3000
 EXPOSE 3000
 
-# Start development server
-CMD npm run dev
+# Build the Next.js application
+RUN npm run build
+
+# Start the application in production mode
+CMD ["npm", "run", "start"]
