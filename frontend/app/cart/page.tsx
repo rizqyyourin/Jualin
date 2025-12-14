@@ -148,7 +148,7 @@ export default function CartPage() {
             )}
 
             {/* Checkout Button */}
-            <Link href="/checkout/shipping" className="block">
+            <Link href="/checkout" className="block">
               <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-3 h-auto text-base">
                 Proceed to Checkout
               </Button>

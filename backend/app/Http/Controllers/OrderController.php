@@ -183,15 +183,16 @@ class OrderController extends Controller
         }
 
         $validated = $request->validate([
-            'payment_method' => 'required|string|in:credit_card,paypal,bank_transfer,cash_on_delivery',
             'shipping_address' => 'required|array',
-            'shipping_address.recipient_name' => 'required|string',
+            'shipping_address.full_name' => 'required|string',
+            'shipping_address.email' => 'required|email',
             'shipping_address.phone' => 'required|string',
             'shipping_address.address' => 'required|string',
             'shipping_address.city' => 'required|string',
-            'shipping_address.province' => 'required|string',
-            'shipping_address.postal_code' => 'required|string',
-            'notes' => 'nullable|string',
+            'shipping_address.state' => 'required|string',
+            'shipping_address.zip_code' => 'required|string',
+            'shipping_address.country' => 'required|string',
+            'customer_notes' => 'nullable|string',
         ]);
 
         // Start transaction
@@ -215,17 +216,16 @@ class OrderController extends Controller
             $firstProduct = $cart->items->first()->product;
             $merchantId = $firstProduct->user_id;
 
-            // Create order
+            // Create order with pending status
             $order = Order::create([
                 'user_id' => $user->id,
                 'merchant_id' => $merchantId,
                 'order_number' => Order::generateOrderNumber(),
-                'status' => 'confirmed',
+                'status' => 'pending',
                 'payment_status' => 'pending',
-                'payment_method' => $validated['payment_method'],
                 'shipping_status' => 'pending',
                 'shipping_address' => $validated['shipping_address'],
-                'customer_notes' => $validated['notes'] ?? null,
+                'customer_notes' => $validated['customer_notes'] ?? null,
             ]);
 
             $totalPrice = 0;
@@ -244,8 +244,7 @@ class OrderController extends Controller
                     'total_price' => $total,
                 ]);
 
-                // Reduce stock
-                $product->stock->decrement('quantity', $cartItem->quantity);
+                // Don't reduce stock yet - wait for seller confirmation
 
                 $totalPrice += $total;
             }
@@ -256,8 +255,8 @@ class OrderController extends Controller
             // Create initial status history
             OrderStatusHistory::create([
                 'order_id' => $order->id,
-                'status' => 'confirmed',
-                'notes' => 'Order created from cart',
+                'status' => 'pending',
+                'notes' => 'Order created, waiting for seller confirmation',
                 'changed_by' => $user->id,
             ]);
 
@@ -356,6 +355,111 @@ class OrderController extends Controller
 
         return response()->json([
             'message' => 'Order cancelled successfully',
+            'data' => $order->load('statusHistory'),
+        ]);
+    }
+
+    /**
+     * Seller confirms order
+     * Only merchants can confirm orders
+     */
+    public function confirm(Request $request, Order $order)
+    {
+        // Check if merchant owns products in this order
+        $merchantOwnedCount = $order->items()
+            ->whereHas('product', function (Builder $query) {
+                $query->where('user_id', auth()->id());
+            })
+            ->count();
+
+        if ($merchantOwnedCount === 0) {
+            return response()->json([
+                'message' => 'Unauthorized to confirm this order',
+            ], 403);
+        }
+
+        // Can only confirm pending orders
+        if ($order->status !== 'pending') {
+            return response()->json([
+                'message' => 'Can only confirm pending orders',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Deduct stock when confirming
+            foreach ($order->items as $orderItem) {
+                $product = $orderItem->product;
+                $stockQuantity = $product->stock->quantity ?? 0;
+
+                if ($orderItem->quantity > $stockQuantity) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Insufficient stock for {$product->name}. Only {$stockQuantity} available.",
+                    ], 422);
+                }
+
+                // Reduce stock
+                $product->stock->decrement('quantity', $orderItem->quantity);
+            }
+
+            // Update order status
+            $order->updateStatus(
+                'confirmed',
+                $request->input('notes', 'Order confirmed by seller'),
+                auth()->id()
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Order confirmed successfully',
+                'data' => $order->load('statusHistory'),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to confirm order: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Seller marks order as completed
+     * Only merchants can complete orders
+     */
+    public function complete(Request $request, Order $order)
+    {
+        // Check if merchant owns products in this order
+        $merchantOwnedCount = $order->items()
+            ->whereHas('product', function (Builder $query) {
+                $query->where('user_id', auth()->id());
+            })
+            ->count();
+
+        if ($merchantOwnedCount === 0) {
+            return response()->json([
+                'message' => 'Unauthorized to complete this order',
+            ], 403);
+        }
+
+        // Can only complete confirmed orders
+        if ($order->status !== 'confirmed') {
+            return response()->json([
+                'message' => 'Can only complete confirmed orders',
+            ], 422);
+        }
+
+        $order->updateStatus(
+            'completed',
+            $request->input('notes', 'Order completed by seller'),
+            auth()->id()
+        );
+
+        return response()->json([
+            'message' => 'Order marked as completed',
             'data' => $order->load('statusHistory'),
         ]);
     }
