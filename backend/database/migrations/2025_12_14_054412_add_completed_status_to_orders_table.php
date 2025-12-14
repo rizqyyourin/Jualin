@@ -18,6 +18,7 @@ return new class extends Migration {
 
         if ($driver === 'sqlite') {
             // SQLite doesn't support ALTER COLUMN, so we need to recreate the table
+            DB::statement("DROP TABLE IF EXISTS orders_new");
             DB::statement("
                 CREATE TABLE orders_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
