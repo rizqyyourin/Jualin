@@ -36,7 +36,7 @@ export default function CartPage() {
         <ShoppingBag className="w-16 h-16 text-gray-300 mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
         <p className="text-gray-600 mb-8">Add some items to get started!</p>
-        <Link href="/products">
+        <Link href="/shop">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
             Continue Shopping
           </Button>
@@ -49,7 +49,7 @@ export default function CartPage() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <Link href="/products" className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-semibold mb-6">
+        <Link href="/shop" className="inline-flex items-center gap-1 text-primary hover:text-primary/80 font-semibold mb-6">
           <ArrowLeft className="w-4 h-4" />
           Continue Shopping
         </Link>
@@ -129,7 +129,7 @@ export default function CartPage() {
             </Link>
 
             {/* Continue Shopping */}
-            <Link href="/products">
+            <Link href="/shop">
               <Button variant="outline" className="w-full border-2 border-gray-300 text-gray-700 hover:bg-gray-50 py-3 h-auto text-base">
                 Continue Shopping
               </Button>

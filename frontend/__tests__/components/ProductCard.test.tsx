@@ -70,6 +70,6 @@ describe('ProductCard', () => {
   it('links to product detail page', () => {
     const { container } = render(<ProductCard {...mockProduct} />)
     const link = container.querySelector('a')
-    expect(link).toHaveAttribute('href', '/products/1')
+    expect(link).toHaveAttribute('href', '/shop/1')
   })
 })
