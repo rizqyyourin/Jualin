@@ -5,10 +5,18 @@ namespace App\Http\Controllers;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Product;
+use App\Services\CartService;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
 {
+    protected CartService $cartService;
+
+    public function __construct(CartService $cartService)
+    {
+        $this->cartService = $cartService;
+    }
+
     /**
      * Get user's shopping cart.
      */
@@ -27,7 +35,7 @@ class CartController extends Controller
                 'user_id' => $cart->user_id,
                 'subtotal' => $cart->subtotal,
                 'tax' => $cart->tax,
-                'shipping_cost' => $cart->shipping_cost,
+                'shipping' => $cart->shipping_cost,
                 'discount' => $cart->discount,
                 'total' => $cart->total,
                 'items' => $cart->items()->with(['product', 'product.stock'])->get()->map(fn($item) => [
@@ -62,46 +70,29 @@ class CartController extends Controller
             'attributes' => 'nullable|json',
         ]);
 
-        $user = auth()->user();
-        $product = Product::findOrFail($validated['product_id']);
+        try {
+            $user = auth()->user();
+            $cartItem = $this->cartService->addItem(
+                $user->id,
+                $validated['product_id'],
+                $validated['quantity']
+            );
 
-        // Get or create cart
-        $cart = Cart::firstOrCreate(['user_id' => $user->id]);
-
-        // Check if item already exists
-        $cartItem = $cart->items()
-            ->where('product_id', $product->id)
-            ->first();
-
-        if ($cartItem) {
-            // Update quantity
-            $cartItem->quantity += $validated['quantity'];
-            $cartItem->subtotal = $cartItem->price * $cartItem->quantity;
-            $cartItem->save();
-        } else {
-            // Create new cart item
-            $cartItem = CartItem::create([
-                'cart_id' => $cart->id,
-                'product_id' => $product->id,
-                'quantity' => $validated['quantity'],
-                'price' => $product->price,
-                'subtotal' => $product->price * $validated['quantity'],
-                'attributes' => $validated['attributes'] ?? null,
-            ]);
+            return response()->json([
+                'message' => 'Item added to cart successfully',
+                'data' => [
+                    'id' => $cartItem->id,
+                    'product_id' => $cartItem->product_id,
+                    'quantity' => $cartItem->quantity,
+                    'price' => $cartItem->price,
+                    'subtotal' => $cartItem->subtotal,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
         }
-
-        $cart->calculateTotals();
-
-        return response()->json([
-            'message' => 'Item added to cart successfully',
-            'data' => [
-                'id' => $cartItem->id,
-                'product_id' => $cartItem->product_id,
-                'quantity' => $cartItem->quantity,
-                'price' => $cartItem->price,
-                'subtotal' => $cartItem->subtotal,
-            ],
-        ], 201);
     }
 
     /**
@@ -119,26 +110,27 @@ class CartController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        if ($validated['quantity'] === 0) {
-            $cartItem->delete();
-            $cartItem->cart->calculateTotals();
+        try {
+            if ($validated['quantity'] === 0) {
+                $this->cartService->removeItem($itemId);
+                return response()->json(['message' => 'Item removed from cart']);
+            }
 
-            return response()->json(['message' => 'Item removed from cart']);
+            $updatedItem = $this->cartService->updateItem($itemId, $validated['quantity']);
+
+            return response()->json([
+                'message' => 'Cart updated successfully',
+                'data' => [
+                    'id' => $updatedItem->id,
+                    'quantity' => $updatedItem->quantity,
+                    'subtotal' => $updatedItem->subtotal,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
         }
-
-        $cartItem->quantity = $validated['quantity'];
-        $cartItem->subtotal = $cartItem->price * $cartItem->quantity;
-        $cartItem->save();
-
-        $cartItem->cart->calculateTotals();
-
-        return response()->json([
-            'data' => [
-                'id' => $cartItem->id,
-                'quantity' => $cartItem->quantity,
-                'subtotal' => $cartItem->subtotal,
-            ],
-        ]);
     }
 
     /**
@@ -152,11 +144,14 @@ class CartController extends Controller
             return response()->json(['message' => 'Unauthorized'], 403);
         }
 
-        $cart = $cartItem->cart;
-        $cartItem->delete();
-        $cart->calculateTotals();
-
-        return response()->json(['message' => 'Item removed from cart']);
+        try {
+            $this->cartService->removeItem($itemId);
+            return response()->json(['message' => 'Item removed from cart']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
+        }
     }
 
     /**
@@ -164,21 +159,15 @@ class CartController extends Controller
      */
     public function clear()
     {
-        $user = auth()->user();
-        $cart = Cart::where('user_id', $user->id)->first();
-
-        if ($cart) {
-            $cart->items()->delete();
-            $cart->update([
-                'subtotal' => 0,
-                'tax' => 0,
-                'shipping_cost' => 0,
-                'discount' => 0,
-                'total' => 0,
-            ]);
+        try {
+            $user = auth()->user();
+            $this->cartService->clear($user->id);
+            return response()->json(['message' => 'Cart cleared successfully']);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 400);
         }
-
-        return response()->json(['message' => 'Cart cleared successfully']);
     }
 
     /**

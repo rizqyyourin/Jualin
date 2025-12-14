@@ -6,6 +6,7 @@ interface CartStore {
   cart: Cart | null;
   loading: boolean;
   error: Error | null;
+  message: string | null;
   isInitialized: boolean;
 
   // Actions
@@ -17,6 +18,7 @@ interface CartStore {
   applyDiscount: (couponCode: string) => Promise<void>;
   removeDiscount: () => Promise<void>;
   resetCart: () => void;
+  clearMessage: () => void;
 
   // Computed
   getTotalPrice: () => number;
@@ -28,6 +30,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
   cart: null,
   loading: false,
   error: null,
+  message: null,
   isInitialized: false,
 
   // Load cart from API
@@ -77,7 +80,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   // Update item quantity
   updateQuantity: async (itemId: number, quantity: number) => {
-    set({ error: null });
+    set({ error: null, message: null });
     try {
       if (quantity <= 0) {
         await cartAPI.removeFromCart(itemId);
@@ -86,11 +89,19 @@ export const useCartStore = create<CartStore>((set, get) => ({
       }
       // Refresh cart
       const response = await cartAPI.getCart();
-      set({ cart: response.data });
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error');
-      set({ error });
-      console.error('Failed to update quantity:', error.message);
+      set({ cart: response.data, message: 'Cart updated successfully' });
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err?.message || 'Failed to update cart';
+      const error = new Error(errorMessage);
+      set({ error, message: errorMessage });
+      console.error('Failed to update quantity:', errorMessage);
+      // Reload cart to sync with server state
+      try {
+        const response = await cartAPI.getCart();
+        set({ cart: response.data });
+      } catch (reloadErr) {
+        console.error('Failed to reload cart:', reloadErr);
+      }
     }
   },
 
@@ -135,7 +146,12 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   // Reset local cart state (without API call)
   resetCart: () => {
-    set({ cart: null, error: null, isInitialized: false });
+    set({ cart: null, error: null, message: null, isInitialized: false });
+  },
+
+  // Clear message
+  clearMessage: () => {
+    set({ message: null, error: null });
   },
 
   // Get total price

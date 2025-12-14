@@ -9,11 +9,21 @@ import { ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 export default function CartPage() {
-  const { cart, loadCart, removeItem, updateQuantity, loading, getTotalPrice, getTotalItems } = useCartStore();
+  const { cart, loadCart, removeItem, updateQuantity, loading, getTotalPrice, getTotalItems, message, error, clearMessage } = useCartStore();
 
   useEffect(() => {
     loadCart();
   }, [loadCart]);
+
+  // Auto-dismiss messages after 5 seconds
+  useEffect(() => {
+    if (message || error) {
+      const timer = setTimeout(() => {
+        clearMessage();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message, error, clearMessage]);
 
   if (loading && !cart) {
     return (
@@ -58,6 +68,22 @@ export default function CartPage() {
           You have <span className="font-semibold">{itemCount}</span> {itemCount === 1 ? 'item' : 'items'} in your cart
         </p>
       </div>
+
+      {/* Error/Success Messages */}
+      {(message || error) && (
+        <div className={`p-4 rounded-lg border ${error ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'}`}>
+          <div className="flex items-start justify-between">
+            <p className="font-medium">{error ? error.message : message}</p>
+            <button
+              onClick={clearMessage}
+              className="text-gray-500 hover:text-gray-700 ml-4"
+              aria-label="Dismiss message"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Cart Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

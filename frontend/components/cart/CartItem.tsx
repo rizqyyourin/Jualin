@@ -12,6 +12,9 @@ interface CartItemProps {
 
 export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItemProps) {
   const productName = item.product?.name || 'Unknown Product';
+  const availableStock = item.product?.stock?.quantity ?? 0;
+  const isAtStockLimit = item.quantity >= availableStock;
+  const isOutOfStock = availableStock === 0;
 
   return (
     <div className="flex gap-4 py-4 border-b last:border-b-0 sm:gap-6">
@@ -27,6 +30,14 @@ export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItem
         <p className="text-sm text-gray-500">
           {item.quantity} × ${Number(item.price).toFixed(2)}
         </p>
+        {/* Stock Information */}
+        {availableStock > 0 ? (
+          <p className={`text-xs mt-1 ${availableStock < 10 ? 'text-orange-600' : 'text-gray-500'}`}>
+            {availableStock < 10 && availableStock > 0 ? `Only ${availableStock} left in stock` : `${availableStock} available`}
+          </p>
+        ) : (
+          <p className="text-xs mt-1 text-red-600 font-semibold">Out of stock</p>
+        )}
       </div>
 
       {/* Actions */}
@@ -35,7 +46,9 @@ export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItem
         <div className="flex items-center gap-2 border rounded-lg">
           <button
             onClick={() => onUpdateQuantity(item.quantity - 1)}
-            className="px-3 py-1 hover:bg-gray-100 transition"
+            className="px-3 py-1 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={item.quantity <= 1}
+            title={item.quantity <= 1 ? "Minimum quantity is 1" : "Decrease quantity"}
           >
             −
           </button>
@@ -44,7 +57,15 @@ export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItem
           </span>
           <button
             onClick={() => onUpdateQuantity(item.quantity + 1)}
-            className="px-3 py-1 hover:bg-gray-100 transition"
+            className="px-3 py-1 hover:bg-gray-100 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={isAtStockLimit || isOutOfStock}
+            title={
+              isOutOfStock
+                ? "Out of stock"
+                : isAtStockLimit
+                  ? `Maximum available: ${availableStock}`
+                  : "Increase quantity"
+            }
           >
             +
           </button>
@@ -59,6 +80,7 @@ export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItem
         <button
           onClick={onRemove}
           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Remove from cart"
         >
           <Trash2 className="w-5 h-5" />
         </button>
