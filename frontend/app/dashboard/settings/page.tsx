@@ -30,7 +30,7 @@ export default function SettingsPage() {
     // Protect route
     useEffect(() => {
         if (!userLoading && !isAuthenticated) {
-            router.push('/login');
+            router.push('/');
         } else if (!userLoading && isAuthenticated && user?.role !== 'merchant') {
             router.push('/');
         }

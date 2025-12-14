@@ -29,7 +29,7 @@ class StockService
     /**
      * Deduct stock when order is created.
      */
-    public function deductStock(int $productId, int $quantity, string $reason = 'order'): bool
+    public function deductStock(int $productId, int $quantity, string $reason = 'purchase'): bool
     {
         $stock = Stock::lockForUpdate()
             ->where('product_id', $productId)
@@ -57,7 +57,7 @@ class StockService
     /**
      * Return stock when order is cancelled.
      */
-    public function returnStock(int $productId, int $quantity, string $reason = 'order_cancelled'): void
+    public function returnStock(int $productId, int $quantity, string $reason = 'return'): void
     {
         $stock = Stock::lockForUpdate()
             ->where('product_id', $productId)

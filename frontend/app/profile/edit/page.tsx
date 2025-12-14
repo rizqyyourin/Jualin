@@ -48,7 +48,7 @@ export default function EditProfilePage() {
   // Protect route
   useEffect(() => {
     if (!userLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/');
     }
   }, [isAuthenticated, userLoading, router]);
 

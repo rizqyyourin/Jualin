@@ -7,6 +7,9 @@ use App\Models\OrderItem;
 use App\Models\OrderStatusHistory;
 use App\Models\Product;
 use App\Models\Cart;
+use App\Models\User;
+use App\Services\StockService;
+use App\Notifications\OrderCreatedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +17,13 @@ use Illuminate\Database\Eloquent\Builder;
 
 class OrderController extends Controller
 {
+    protected $stockService;
+
+    public function __construct(StockService $stockService)
+    {
+        $this->stockService = $stockService;
+    }
+
 
     /**
      * Display orders list
@@ -31,7 +41,7 @@ class OrderController extends Controller
                 ->paginate($request->get('per_page', 15));
         } else {
             // Customer sees their own orders
-            $orders = Order::where('customer_id', $user->id)
+            $orders = Order::where('user_id', $user->id)
                 ->with('items', 'statusHistory')
                 ->paginate($request->get('per_page', 15));
         }
@@ -244,7 +254,13 @@ class OrderController extends Controller
                     'total_price' => $total,
                 ]);
 
-                // Don't reduce stock yet - wait for seller confirmation
+                // Reduce stock immediately
+                if (!$this->stockService->deductStock($product->id, $cartItem->quantity, 'purchase')) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => "Failed to deduct stock for {$product->name}. Please try again.",
+                    ], 500);
+                }
 
                 $totalPrice += $total;
             }
@@ -256,7 +272,7 @@ class OrderController extends Controller
             OrderStatusHistory::create([
                 'order_id' => $order->id,
                 'status' => 'pending',
-                'notes' => 'Order created, waiting for seller confirmation',
+                'notes' => 'Order created successfully',
                 'changed_by' => $user->id,
             ]);
 
@@ -271,6 +287,12 @@ class OrderController extends Controller
             ]);
 
             DB::commit();
+
+            // Notify merchant about new order
+            $merchant = User::find($merchantId);
+            if ($merchant) {
+                $merchant->notify(new OrderCreatedNotification($order));
+            }
 
             $order->load('items.product', 'statusHistory');
 
@@ -347,16 +369,37 @@ class OrderController extends Controller
             'reason' => 'nullable|string',
         ]);
 
-        $order->updateStatus(
-            'cancelled',
-            $validated['reason'] ?? 'Cancelled by customer',
-            auth()->id()
-        );
+        DB::beginTransaction();
 
-        return response()->json([
-            'message' => 'Order cancelled successfully',
-            'data' => $order->load('statusHistory'),
-        ]);
+        try {
+            // Return stock to inventory
+            foreach ($order->items as $orderItem) {
+                $this->stockService->returnStock(
+                    $orderItem->product_id,
+                    $orderItem->quantity,
+                    'return'
+                );
+            }
+
+            $order->updateStatus(
+                'cancelled',
+                $validated['reason'] ?? 'Cancelled by customer',
+                auth()->id()
+            );
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Order cancelled successfully',
+                'data' => $order->load('statusHistory'),
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Failed to cancel order: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -385,45 +428,17 @@ class OrderController extends Controller
             ], 422);
         }
 
-        DB::beginTransaction();
+        // Update order status (stock already deducted on order creation)
+        $order->updateStatus(
+            'confirmed',
+            $request->input('notes', 'Order confirmed by seller'),
+            auth()->id()
+        );
 
-        try {
-            // Deduct stock when confirming
-            foreach ($order->items as $orderItem) {
-                $product = $orderItem->product;
-                $stockQuantity = $product->stock->quantity ?? 0;
-
-                if ($orderItem->quantity > $stockQuantity) {
-                    DB::rollBack();
-                    return response()->json([
-                        'message' => "Insufficient stock for {$product->name}. Only {$stockQuantity} available.",
-                    ], 422);
-                }
-
-                // Reduce stock
-                $product->stock->decrement('quantity', $orderItem->quantity);
-            }
-
-            // Update order status
-            $order->updateStatus(
-                'confirmed',
-                $request->input('notes', 'Order confirmed by seller'),
-                auth()->id()
-            );
-
-            DB::commit();
-
-            return response()->json([
-                'message' => 'Order confirmed successfully',
-                'data' => $order->load('statusHistory'),
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json([
-                'message' => 'Failed to confirm order: ' . $e->getMessage(),
-            ], 500);
-        }
+        return response()->json([
+            'message' => 'Order confirmed successfully',
+            'data' => $order->load('statusHistory'),
+        ]);
     }
 
     /**
@@ -453,7 +468,7 @@ class OrderController extends Controller
         }
 
         $order->updateStatus(
-            'completed',
+            'delivered',
             $request->input('notes', 'Order completed by seller'),
             auth()->id()
         );

@@ -17,9 +17,11 @@ import {
   LogOut,
   ChevronRight,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 import { useUserStore } from '@/lib/stores/userStore';
 import apiClient from '@/lib/api';
+import { authAPI } from '@/lib/api/auth';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -29,10 +31,14 @@ export default function ProfilePage() {
     wishlistCount: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     if (!userLoading && !isAuthenticated) {
-      router.push('/login');
+      router.push('/');
     }
   }, [isAuthenticated, userLoading, router]);
 
@@ -68,6 +74,26 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     await logout();
     router.push('/');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your password');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await authAPI.deleteAccount(deletePassword);
+      logout();
+      router.push('/');
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'Failed to delete account');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   if (userLoading || !isAuthenticated) {
@@ -260,8 +286,67 @@ export default function ProfilePage() {
             </div>
             <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition" />
           </button>
+
+          <button
+            onClick={() => setShowDeleteDialog(true)}
+            className="w-full flex items-center justify-between p-4 rounded-lg hover:bg-red-50 transition text-left group"
+          >
+            <div className="flex items-center gap-3">
+              <Trash2 className="w-5 h-5 text-red-600" />
+              <span className="text-red-600 font-semibold group-hover:text-red-700 transition">
+                Delete Account
+              </span>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-red-600 transition" />
+          </button>
         </div>
       </Card>
+
+      {/* Delete Account Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md p-6 shadow-2xl">
+            <h3 className="text-xl font-bold text-red-900 mb-4">Delete Account</h3>
+            <p className="text-gray-700 mb-4">
+              Are you sure you want to delete your account? This action cannot be undone.
+            </p>
+            <p className="text-sm text-gray-600 mb-4">
+              Enter your password to confirm:
+            </p>
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="Password"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+            {deleteError && (
+              <p className="text-sm text-red-600 mb-4">{deleteError}</p>
+            )}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeletePassword('');
+                  setDeleteError('');
+                }}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleDeleteAccount}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

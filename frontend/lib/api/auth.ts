@@ -91,6 +91,9 @@ export const authAPI = {
       localStorage.removeItem('authToken');
       localStorage.removeItem('user');
     } catch (error) {
+      // Even if logout fails on server, clear local data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
       console.error('Error logging out:', error);
       throw error;
     }
@@ -108,16 +111,33 @@ export const authAPI = {
   },
 
   // Update user profile
-  updateProfile: async (data: Partial<User>) => {
+  updateProfile: async (data: Partial<User>): Promise<User> => {
     try {
-      const response = await apiClient.put<User>('/auth/profile', data);
+      const response = await apiClient.put<{ data: User }>('/user/profile', data);
 
       // Update stored user data
-      localStorage.setItem('user', JSON.stringify(response.data));
+      const user = response.data.data;
+      localStorage.setItem('user', JSON.stringify(user));
 
-      return response.data;
+      return user;
     } catch (error) {
       console.error('Error updating profile:', error);
+      throw error;
+    }
+  },
+
+  // Delete user account
+  deleteAccount: async (password: string): Promise<void> => {
+    try {
+      await apiClient.delete('/user/account', {
+        data: { password }
+      });
+
+      // Clear stored data
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('user');
+    } catch (error) {
+      console.error('Error deleting account:', error);
       throw error;
     }
   },

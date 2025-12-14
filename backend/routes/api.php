@@ -47,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/profile', [UserController::class, 'profile'])->name('user.profile');
     Route::put('/user/profile', [UserController::class, 'updateProfile'])->name('user.updateProfile');
     Route::put('/user/password', [UserController::class, 'updatePassword'])->name('user.updatePassword');
+    Route::delete('/user/account', [UserController::class, 'deleteAccount'])->name('user.deleteAccount');
 
 
     // Product endpoints

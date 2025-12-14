@@ -80,4 +80,34 @@ class UserController extends Controller
             'message' => 'Password updated successfully',
         ]);
     }
+
+    /**
+     * Delete user account
+     * User can delete their own account with password confirmation
+     */
+    public function deleteAccount(Request $request)
+    {
+        $user = auth()->user();
+
+        $validated = $request->validate([
+            'password' => 'required|string',
+        ]);
+
+        // Verify password for security
+        if (!Hash::check($validated['password'], $user->password)) {
+            return response()->json([
+                'message' => 'Password is incorrect',
+            ], 422);
+        }
+
+        // Revoke all tokens
+        $user->tokens()->delete();
+
+        // Delete user account
+        $user->delete();
+
+        return response()->json([
+            'message' => 'Account deleted successfully',
+        ]);
+    }
 }

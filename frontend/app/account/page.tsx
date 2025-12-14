@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useUserStore } from '@/lib/stores/userStore';
+import { authAPI } from '@/lib/api/auth';
 import {
   User,
   Mail,
@@ -33,12 +35,37 @@ const mockUser = {
 };
 
 export default function AccountPage() {
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const { user, isAuthenticated, logout } = useUserStore();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your password');
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await authAPI.deleteAccount(deletePassword);
+      logout();
+      router.push('/');
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'Failed to delete account');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (!mounted) {
     return (
@@ -58,18 +85,11 @@ export default function AccountPage() {
           <p className="text-gray-600 mb-6">
             Silakan login atau daftar untuk mengakses akun Anda
           </p>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/auth/login" className="flex-1">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                Login
-              </Button>
-            </Link>
-            <Link href="/auth/register" className="flex-1">
-              <Button variant="outline" className="w-full">
-                Daftar
-              </Button>
-            </Link>
-          </div>
+          <Link href="/">
+            <Button className="w-full bg-blue-600 hover:bg-blue-700">
+              Kembali ke Beranda
+            </Button>
+          </Link>
         </Card>
       </div>
     );
@@ -116,15 +136,15 @@ export default function AccountPage() {
                   <p>
                     {displayUser?.created_at
                       ? new Date(displayUser.created_at).toLocaleDateString('id-ID', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })
                       : new Date(mockUser.joinDate).toLocaleDateString('id-ID', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric',
-                        })}
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                      })}
                   </p>
                 </div>
               </div>
@@ -266,6 +286,7 @@ export default function AccountPage() {
                 <Button
                   variant="outline"
                   className="w-full border-red-300 text-red-600 hover:bg-red-100"
+                  onClick={() => setShowDeleteDialog(true)}
                 >
                   Hapus Akun
                 </Button>
@@ -276,6 +297,52 @@ export default function AccountPage() {
             </Card>
           </div>
         </div>
+
+        {/* Delete Account Confirmation Dialog */}
+        {showDeleteDialog && (
+          <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <Card className="w-full max-w-md p-6 shadow-2xl">
+              <h3 className="text-xl font-bold text-red-900 mb-4">Hapus Akun</h3>
+              <p className="text-gray-700 mb-4">
+                Apakah Anda yakin ingin menghapus akun Anda? Tindakan ini tidak dapat dibatalkan.
+              </p>
+              <p className="text-sm text-gray-600 mb-4">
+                Masukkan password Anda untuk konfirmasi:
+              </p>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Password"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+              {deleteError && (
+                <p className="text-sm text-red-600 mb-4">{deleteError}</p>
+              )}
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setDeletePassword('');
+                    setDeleteError('');
+                  }}
+                  disabled={isDeleting}
+                >
+                  Batal
+                </Button>
+                <Button
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Menghapus...' : 'Hapus Akun'}
+                </Button>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   );
