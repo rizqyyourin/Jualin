@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, ShoppingCart, Loader2, ShoppingBag } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShoppingCart, Loader2, ShoppingBag, Star } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useRecommendations, useTrendingProducts, useBestsellerProducts } from '@/lib/hooks/useRecommendations';
@@ -221,15 +221,15 @@ export const RecommendationsCarousel = ({
                   </div>
 
                   {/* Rating & Price */}
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="text-xl font-bold text-primary">
-                      ${product.price.toFixed(2)}
-                    </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-2xl font-bold text-primary">
+                      ${Number(product.price).toFixed(2)}
+                    </span>
                     {product.rating && (
-                      <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-md">
-                        <span className="text-yellow-400 text-xs">★</span>
-                        <span className="text-xs font-semibold text-gray-700">
-                          {product.rating.toFixed(1)}
+                      <div className="flex items-center gap-1 bg-yellow-50 px-2 py-1 rounded">
+                        <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-semibold text-yellow-700">
+                          {Number(product.rating).toFixed(1)}
                         </span>
                       </div>
                     )}

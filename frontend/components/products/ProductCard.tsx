@@ -109,7 +109,7 @@ export function ProductCard({
             <div className="space-y-3 border-t pt-3">
               <div className="flex items-baseline gap-2">
                 <span className="text-2xl font-bold text-primary">
-                  ${price.toFixed(2)}
+                  ${Number(price).toFixed(2)}
                 </span>
               </div>
             </div>

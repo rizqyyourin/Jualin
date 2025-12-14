@@ -109,7 +109,7 @@ export default function WishlistPage() {
 
                 <div className="mt-auto space-y-3">
                   <div className="text-2xl font-bold text-blue-600">
-                    ${item.price.toFixed(2)}
+                    ${Number(item.price).toFixed(2)}
                   </div>
 
                   {/* Actions */}

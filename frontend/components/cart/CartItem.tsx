@@ -23,35 +23,37 @@ export function CartItemComponent({ item, onUpdateQuantity, onRemove }: CartItem
       {/* Product Info */}
       <div className="flex-1 min-w-0">
         <h3 className="font-semibold text-gray-900 mb-1 truncate">{productName}</h3>
-        <p className="text-blue-600 font-bold text-lg">${item.price.toFixed(2)}</p>
+        <p className="text-blue-600 font-bold text-lg">${Number(item.price).toFixed(2)}</p>
+        <p className="text-sm text-gray-500">
+          {item.quantity} × ${Number(item.price).toFixed(2)}
+        </p>
       </div>
 
-      {/* Quantity & Actions */}
-      <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3 sm:gap-4">
-        {/* Quantity Selector */}
-        <div className="flex items-center border rounded-lg">
+      {/* Actions */}
+      <div className="flex flex-col items-end gap-3">
+        {/* Quantity Controls */}
+        <div className="flex items-center gap-2 border rounded-lg">
           <button
             onClick={() => onUpdateQuantity(item.quantity - 1)}
-            className="px-2 py-1 hover:bg-gray-100 transition"
+            className="px-3 py-1 hover:bg-gray-100 transition"
           >
-            <Minus className="w-4 h-4" />
+            −
           </button>
-          <span className="px-4 py-1 font-semibold">{item.quantity}</span>
+          <span className="px-3 py-1 font-semibold min-w-[40px] text-center">
+            {item.quantity}
+          </span>
           <button
             onClick={() => onUpdateQuantity(item.quantity + 1)}
-            className="px-2 py-1 hover:bg-gray-100 transition"
+            className="px-3 py-1 hover:bg-gray-100 transition"
           >
-            <Plus className="w-4 h-4" />
+            +
           </button>
         </div>
 
-        {/* Subtotal */}
-        <div className="text-right">
-          <p className="text-xs text-gray-600 mb-1">Subtotal</p>
-          <p className="text-lg font-bold text-gray-900">
-            ${(item.price * item.quantity).toFixed(2)}
-          </p>
-        </div>
+        {/* Total Price */}
+        <p className="text-xl font-bold text-primary">
+          ${(Number(item.price) * item.quantity).toFixed(2)}
+        </p>
 
         {/* Remove Button */}
         <button
