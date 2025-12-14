@@ -131,7 +131,7 @@ export default function WishlistPage() {
                   </div>
 
                   {/* View Product Link */}
-                  <Link href={`/products/${item.id}`} className="block">
+                  <Link href={`/shop/${item.id}`} className="block">
                     <Button
                       variant="outline"
                       className="w-full"
