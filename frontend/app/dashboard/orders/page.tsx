@@ -64,28 +64,49 @@ export default function DashboardOrdersPage() {
             success('Order status updated successfully');
             loadOrders();
             setSelectedOrder(null);
-        } catch (err) {
-            showError('Failed to update order status');
+        } catch (err: any) {
+            showError(err?.response?.data?.message || 'Failed to update order status');
+        }
+    };
+
+    const confirmOrder = async (orderId: number) => {
+        try {
+            await apiClient.post(`/orders/${orderId}/confirm`);
+            success('Order confirmed successfully');
+            loadOrders();
+        } catch (err: any) {
+            showError(err?.response?.data?.message || 'Failed to confirm order');
+        }
+    };
+
+    const completeOrder = async (orderId: number) => {
+        try {
+            await apiClient.post(`/orders/${orderId}/complete`);
+            success('Order marked as completed');
+            loadOrders();
+        } catch (err: any) {
+            showError(err?.response?.data?.message || 'Failed to complete order');
         }
     };
 
     const getStatusBadge = (status: string) => {
-        const statusConfig: Record<string, { color: string; icon: any }> = {
-            pending: { color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-            confirmed: { color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
-            processing: { color: 'bg-purple-100 text-purple-800', icon: Package },
-            shipped: { color: 'bg-indigo-100 text-indigo-800', icon: Truck },
-            delivered: { color: 'bg-green-100 text-green-800', icon: CheckCircle },
-            cancelled: { color: 'bg-red-100 text-red-800', icon: XCircle },
+        const statusConfig: Record<string, { color: string; icon: any; label: string }> = {
+            pending: { color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock, label: 'Pending Confirmation' },
+            confirmed: { color: 'bg-blue-100 text-blue-800 border-blue-200', icon: CheckCircle, label: 'Confirmed' },
+            completed: { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle, label: 'Completed' },
+            processing: { color: 'bg-purple-100 text-purple-800 border-purple-200', icon: Package, label: 'Processing' },
+            shipped: { color: 'bg-indigo-100 text-indigo-800 border-indigo-200', icon: Truck, label: 'Shipped' },
+            delivered: { color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle, label: 'Delivered' },
+            cancelled: { color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle, label: 'Cancelled' },
         };
 
         const config = statusConfig[status] || statusConfig.pending;
         const Icon = config.icon;
 
         return (
-            <Badge className={`${config.color} flex items-center gap-1`}>
+            <Badge className={`${config.color} border flex items-center gap-1`}>
                 <Icon className="w-3 h-3" />
-                {status.charAt(0).toUpperCase() + status.slice(1)}
+                {config.label}
             </Badge>
         );
     };
@@ -185,33 +206,33 @@ export default function DashboardOrdersPage() {
                                     View Details
                                 </Button>
 
+                                {order.status === 'pending' && (
+                                    <>
+                                        <Button
+                                            size="sm"
+                                            onClick={() => confirmOrder(order.id)}
+                                            className="bg-blue-600 hover:bg-blue-700"
+                                        >
+                                            Confirm Order
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                            className="border-red-300 text-red-600 hover:bg-red-50"
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </>
+                                )}
+
                                 {order.status === 'confirmed' && (
                                     <Button
                                         size="sm"
-                                        onClick={() => updateOrderStatus(order.id, 'processing')}
-                                        className="bg-purple-600 hover:bg-purple-700"
-                                    >
-                                        Start Processing
-                                    </Button>
-                                )}
-
-                                {order.status === 'processing' && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => updateOrderStatus(order.id, 'shipped')}
-                                        className="bg-indigo-600 hover:bg-indigo-700"
-                                    >
-                                        Mark as Shipped
-                                    </Button>
-                                )}
-
-                                {order.status === 'shipped' && (
-                                    <Button
-                                        size="sm"
-                                        onClick={() => updateOrderStatus(order.id, 'delivered')}
+                                        onClick={() => completeOrder(order.id)}
                                         className="bg-green-600 hover:bg-green-700"
                                     >
-                                        Mark as Delivered
+                                        Mark as Completed
                                     </Button>
                                 )}
                             </div>

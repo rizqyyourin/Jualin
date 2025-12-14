@@ -4,63 +4,103 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShoppingBag, ChevronRight, MapPin, Calendar } from 'lucide-react';
-import { OrderTrackingCard } from '@/components/orders/OrderTrackingCard';
+import { Badge } from '@/components/ui/badge';
+import { ShoppingBag, ChevronRight, MapPin, Calendar, Clock, CheckCircle, Package, Loader2 } from 'lucide-react';
+import apiClient from '@/lib/api';
 
 interface Order {
-  orderNumber: string;
-  date: string;
-  total: number;
-  items: Array<{
-    id: string;
-    name: string;
-    price: number;
-    quantity: number;
-  }>;
-  shippingData?: {
-    fullName: string;
-    address: string;
-    city: string;
-    state: string;
+  id: number;
+  order_number: string;
+  status: string;
+  total_price: number;
+  shipping_address: {
+    full_name?: string;
+    city?: string;
+    state?: string;
   };
-  status?: 'pending' | 'processing' | 'shipped' | 'delivered';
-  trackingNumber?: string;
+  items: Array<{
+    id: number;
+    product?: {
+      name: string;
+    };
+    quantity: number;
+    unit_price: number;
+  }>;
+  created_at: string;
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setIsMounted(true);
+    loadOrders();
   }, []);
 
-  useEffect(() => {
-    if (!isMounted) return;
-
-    const recentOrders = localStorage.getItem('recentOrders');
-    if (recentOrders) {
-      setOrders(JSON.parse(recentOrders));
-    }
-    setIsLoading(false);
-  }, [isMounted]);
-
-  const getOrderStatus = (orderDate: string) => {
-    const date = new Date(orderDate);
-    const now = new Date();
-    const daysAgo = Math.floor(
-      (now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-    );
-
-    if (daysAgo === 0) {
-      return { status: 'Processing', color: 'bg-primary/10 text-primary' };
-    } else if (daysAgo === 1) {
-      return { status: 'Shipped', color: 'bg-purple-100 text-purple-800' };
-    } else {
-      return { status: 'Delivered', color: 'bg-green-100 text-green-800' };
+  const loadOrders = async () => {
+    try {
+      const response = await apiClient.get('/orders');
+      setOrders(response.data.data.data || response.data.data || []);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+    } finally {
+      setLoading(false);
     }
   };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig: Record<string, { color: string; icon: any; label: string; description: string }> = {
+      pending: {
+        color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+        icon: Clock,
+        label: 'Pending Confirmation',
+        description: 'Waiting for seller to confirm your order'
+      },
+      confirmed: {
+        color: 'bg-blue-100 text-blue-800 border-blue-200',
+        icon: CheckCircle,
+        label: 'Confirmed',
+        description: 'Seller confirmed your order'
+      },
+      completed: {
+        color: 'bg-green-100 text-green-800 border-green-200',
+        icon: Package,
+        label: 'Completed',
+        description: 'Order has been completed'
+      },
+      cancelled: {
+        color: 'bg-red-100 text-red-800 border-red-200',
+        icon: Clock,
+        label: 'Cancelled',
+        description: 'Order was cancelled'
+      },
+    };
+
+    const config = statusConfig[status] || statusConfig.pending;
+    const Icon = config.icon;
+
+    return {
+      badge: (
+        <Badge className={`${config.color} border flex items-center gap-1`}>
+          <Icon className="w-3 h-3" />
+          {config.label}
+        </Badge>
+      ),
+      description: config.description
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-center items-center h-96">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
@@ -71,15 +111,11 @@ export default function OrdersPage() {
             Order History
           </h1>
           <p className="text-gray-600">
-            View and manage all your orders in one place
+            View and track all your orders
           </p>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-96">
-            <p className="text-gray-600">Loading orders...</p>
-          </div>
-        ) : orders.length === 0 ? (
+        {orders.length === 0 ? (
           /* Empty State */
           <Card className="p-12 text-center">
             <div className="flex justify-center mb-4">
@@ -97,111 +133,98 @@ export default function OrdersPage() {
           </Card>
         ) : (
           /* Orders List */
-          <div className="space-y-8">
+          <div className="space-y-6">
             {orders.map((order) => {
-              const statusInfo = getOrderStatus(order.date);
-              const orderDate = new Date(order.date).toLocaleDateString(
+              const statusInfo = getStatusBadge(order.status);
+              const orderDate = new Date(order.created_at).toLocaleDateString(
                 'en-US',
                 {
                   year: 'numeric',
-                  month: 'short',
+                  month: 'long',
                   day: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 }
               );
 
-              // Generate tracking number
-              const trackingNumber = `TRACK-${order.orderNumber}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
-              // Estimate delivery date (3-5 days from now)
-              const estimatedDelivery = new Date(
-                Date.now() + 3 * 24 * 60 * 60 * 1000
-              ).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              });
-
               return (
-                <div key={order.orderNumber} className="space-y-4">
-                  {/* Order Card */}
-                  <Card className="p-6 hover:shadow-lg transition">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                      {/* Order Info */}
-                      <div>
-                        <h3 className="text-lg font-bold text-gray-900 mb-2">
-                          Order {order.orderNumber}
-                        </h3>
-                        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4" />
-                            <span>{orderDate}</span>
-                          </div>
-                          {order.shippingData && (
-                            <div className="flex items-center gap-2">
-                              <MapPin className="w-4 h-4" />
-                              <span>
-                                {order.shippingData.city},{' '}
-                                {order.shippingData.state}
-                              </span>
-                            </div>
-                          )}
+                <Card key={order.id} className="p-6 hover:shadow-lg transition">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                    {/* Order Info */}
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-gray-900 mb-2">
+                        Order #{order.order_number}
+                      </h3>
+                      <div className="flex flex-col gap-2 text-sm text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4" />
+                          <span>{orderDate}</span>
                         </div>
-                      </div>
-
-                      {/* Status & Total */}
-                      <div className="flex flex-col sm:items-end gap-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold w-fit ${statusInfo.color}`}
-                        >
-                          {statusInfo.status}
-                        </span>
-                        <p className="text-2xl font-bold text-primary">
-                          ${order.total.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Order Items Preview */}
-                    <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                      <p className="text-sm font-semibold text-gray-700 mb-2">
-                        Items ({order.items.length})
-                      </p>
-                      <div className="space-y-2">
-                        {order.items.slice(0, 2).map((item) => (
-                          <div
-                            key={item.id}
-                            className="flex justify-between text-sm text-gray-600"
-                          >
-                            <span>{item.name}</span>
-                            <span>x{item.quantity}</span>
+                        {order.shipping_address?.city && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4" />
+                            <span>
+                              {order.shipping_address.city}, {order.shipping_address.state}
+                            </span>
                           </div>
-                        ))}
-                        {order.items.length > 2 && (
-                          <p className="text-sm text-gray-500 pt-2 border-t">
-                            +{order.items.length - 2} more item
-                            {order.items.length - 2 > 1 ? 's' : ''}
-                          </p>
                         )}
                       </div>
                     </div>
 
-                    {/* View Order Button */}
-                    <Link href="/checkout/confirmation">
-                      <button className="w-full sm:w-auto flex items-center justify-center gap-2 border-2 border-primary text-primary hover:bg-primary/5 font-semibold py-2 px-4 rounded-lg transition">
+                    {/* Status & Total */}
+                    <div className="flex flex-col sm:items-end gap-3">
+                      {statusInfo.badge}
+                      <p className="text-2xl font-bold text-primary">
+                        ${Number(order.total_price).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Status Description */}
+                  <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Status:</strong> {statusInfo.description}
+                    </p>
+                  </div>
+
+                  {/* Order Items Preview */}
+                  <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                      Items ({order.items.length})
+                    </p>
+                    <div className="space-y-2">
+                      {order.items.slice(0, 3).map((item) => (
+                        <div
+                          key={item.id}
+                          className="flex justify-between text-sm"
+                        >
+                          <span className="text-gray-700">
+                            {item.product?.name || 'Product'} x {item.quantity}
+                          </span>
+                          <span className="font-semibold">
+                            ${(Number(item.unit_price) * item.quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      ))}
+                      {order.items.length > 3 && (
+                        <p className="text-sm text-gray-500 pt-2 border-t">
+                          +{order.items.length - 3} more item
+                          {order.items.length - 3 > 1 ? 's' : ''}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* View Order Button */}
+                  <div className="flex gap-2">
+                    <Link href={`/orders/${order.id}`} className="flex-1">
+                      <button className="w-full flex items-center justify-center gap-2 border-2 border-primary text-primary hover:bg-primary/5 font-semibold py-2 px-4 rounded-lg transition">
                         View Order Details
                         <ChevronRight className="w-4 h-4" />
                       </button>
                     </Link>
-                  </Card>
-
-                  {/* Order Tracking */}
-                  <OrderTrackingCard
-                    orderId={order.orderNumber}
-                    currentStatus={order.status || statusInfo.status.toLowerCase() as any}
-                    estimatedDelivery={estimatedDelivery}
-                    trackingNumber={trackingNumber}
-                  />
-                </div>
+                  </div>
+                </Card>
               );
             })}
           </div>
