@@ -43,8 +43,8 @@ export default function CheckoutPage() {
         setSubmitting(true);
 
         try {
-            // Create order
-            const response = await apiClient.post('/orders', {
+            // Create order from cart
+            const response = await apiClient.post('/orders/from-cart', {
                 shipping_address: {
                     full_name: formData.fullName,
                     email: formData.email,
@@ -57,6 +57,9 @@ export default function CheckoutPage() {
                 },
                 customer_notes: formData.notes,
             });
+
+            // Show success alert
+            alert('✅ Order placed successfully! Your order is pending seller confirmation.');
 
             // Redirect to confirmation page with order ID
             router.push(`/checkout/confirmation?order=${response.data.data.order_number}`);
