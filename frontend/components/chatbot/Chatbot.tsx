@@ -105,12 +105,20 @@ export default function Chatbot() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-zinc-900/50">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground px-4">
+                        <div className="bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-300 dark:border-yellow-700 rounded-lg p-4 mb-4 w-full">
+                            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                ⚙️ Chatbot sedang dalam pengembangan
+                            </p>
+                            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-2">
+                                Kami sedang mengoptimalkan fitur chatbot Jualin Assistant untuk memberikan pengalaman terbaik. Harap bersabar! 🙏
+                            </p>
+                        </div>
                         <div className="bg-primary/10 w-12 h-12 rounded-full flex items-center justify-center mb-3">
                             <Sparkles className="w-6 h-6 text-primary" />
                         </div>
                         <p className="font-medium text-foreground">Halo! Apa kabar?</p>
                         <p className="text-sm mt-2">
-                            Saya siap membantu mencarikan produk atau menjawab pertanyaan Anda.
+                            Saya sedang dalam tahap pengembangan dan akan segera siap melayani Anda.
                         </p>
                     </div>
                 ) : (
@@ -165,14 +173,16 @@ export default function Chatbot() {
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
                         onKeyDown={handleKeyPress}
-                        placeholder="Ketik pesan Anda..."
-                        className="flex-1 bg-muted/50 border border-input rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50"
-                        disabled={isLoading}
+                        placeholder="Chatbot sedang dalam pengembangan..."
+                        className="flex-1 bg-muted/50 border border-input rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all disabled:opacity-50 cursor-not-allowed"
+                        disabled={true}
+                        title="Chatbot sedang dalam tahap pengembangan"
                     />
                     <Button
                         onClick={handleSend}
-                        disabled={!inputMessage.trim() || isLoading}
-                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-4 h-auto shadow-sm"
+                        disabled={true}
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl px-4 h-auto shadow-sm disabled:opacity-50"
+                        title="Chatbot sedang dalam tahap pengembangan"
                     >
                         {isLoading ? (
                             <Loader2 className="w-5 h-5 animate-spin" />

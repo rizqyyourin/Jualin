@@ -163,6 +163,14 @@ class ChatbotService
                 ];
             }
 
+            // Handle location restrictions (400 FAILED_PRECONDITION)
+            if ($response->status() === 400) {
+                return [
+                    'content' => 'Chatbot Jualin sedang dalam tahap pengembangan dan optimasi. Kami akan segera mengaktifkan fitur ini untuk melayani Anda dengan lebih baik. Terima kasih atas kesabaran Anda! 🙏',
+                    'metadata' => null,
+                ];
+            }
+
             return [
                 'content' => 'Maaf, terjadi kesalahan saat menghubungi AI. Silakan coba lagi.',
                 'metadata' => null,
